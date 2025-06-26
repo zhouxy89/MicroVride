@@ -16,10 +16,13 @@ struct ClientData {
 
 class LogItemServer: ObservableObject {
     
-    @Published var latestFSR1: Int = 0
-    @Published var latestFSR2: Int = 0
-    @Published var latestFSR3: Int = 0
-    @Published var latestFSR4: Int = 0
+
+
+    @Published var latestFSR1: String = "0;0.000"
+@Published var latestFSR2: String = "0;0.000"
+@Published var latestFSR3: String = "0;0.000"
+@Published var latestFSR4: String = "0;0.000"
+
 
     private var listener: NWListener
     private var connections: [ConnectionData] = []
