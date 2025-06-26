@@ -115,13 +115,6 @@ struct DebugView: View {
         }
     }
 
-func fsrText(_ label: String, _ value: String) -> String {
-    let parts = value.split(separator: ";")
-    if parts.count == 2 {
-        return "\(label): Raw \(parts[0]), Norm \(parts[1])"
-    } else {
-        return "\(label): \(value)"  // fallback if parsing fails
-    }
-}
+
 
 }
