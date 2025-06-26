@@ -40,23 +40,23 @@ struct DebugView: View {
                             logManager.triggerUpdate(runtime: runtime, fsr1: fsr1, fsr2: fsr2, fsr3: fsr3, fsr4: fsr4)
                         }.font(.subheadline)
                     }
-                    HStack {
+                    HStack{
     Image(systemName: "1.circle")
-    Text(fsrText("FSR1", logItemServer.latestFSR1)).font(.subheadline)
+    Text("FSR1: \(logItemServer.latestFSR1)").font(.subheadline)
 }
-HStack {
+                    HStack{
     Image(systemName: "2.circle")
-    Text(fsrText("FSR2", logItemServer.latestFSR2)).font(.subheadline)
+    Text("FSR2: \(logItemServer.latestFSR2)").font(.subheadline)
 }
-HStack {
+                    HStack{
     Image(systemName: "3.circle")
-    Text(fsrText("FSR3", logItemServer.latestFSR3)).font(.subheadline)
+    Text("FSR3: \(logItemServer.latestFSR3)").font(.subheadline)
 }
-HStack {
+                    HStack{
     Image(systemName: "4.circle")
-    Text(fsrText("FSR4", logItemServer.latestFSR4)).font(.subheadline)
+    Text("FSR4: \(logItemServer.latestFSR4)").font(.subheadline)
 }
-
+                   
                     HStack{
                         Image(systemName: "iphone")
                         if logManager.motionManager.deviceMotion != nil{
