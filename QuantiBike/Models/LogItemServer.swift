@@ -60,14 +60,14 @@ class LogItemServer: ObservableObject {
 
         DispatchQueue.main.async {
             if msg.contains("board=right") {
-                self.updateSensorData(&self.rightFoot, with: pairs)
+                self.updateSensorData(target: &self.rightFoot, with: pairs)
             } else {
-                self.updateSensorData(&self.leftFoot, with: pairs)
+                self.updateSensorData(target: &self.leftFoot, with: pairs)
             }
         }
     }
 
-    private func updateSensorData(_ target: inout FootSensorData, with pairs: [[String]]) {
+    private func updateSensorData(target: inout FootSensorData, with pairs: [[String]]) {
         for pair in pairs where pair.count == 2 {
             let key = pair[0], value = pair[1]
 
