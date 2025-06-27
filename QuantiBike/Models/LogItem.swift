@@ -6,32 +6,6 @@ import Foundation
 import CoreMotion
 import CoreLocation
 
-struct FootSensorData {
-    let fsr1: Int
-    let fsr2: Int
-    let fsr3: Int
-    let fsr4: Int
-
-    let fsr1_raw: Int
-    let fsr2_raw: Int
-    let fsr3_raw: Int
-    let fsr4_raw: Int
-
-    let fsr1_norm: Float
-    let fsr2_norm: Float
-    let fsr3_norm: Float
-    let fsr4_norm: Float
-
-    let fsr1_baseline: Int
-    let fsr2_baseline: Int
-    let fsr3_baseline: Int
-    let fsr4_baseline: Int
-
-    let fsr1_max: Int
-    let fsr2_max: Int
-    let fsr3_max: Int
-    let fsr4_max: Int
-}
 
 struct LogItem {
     let timestamp: TimeInterval
