@@ -1,6 +1,6 @@
 //  DebugView.swift
 //  QuantiBike
-//  Updated to reflect new full FSR data logging and calibration status
+//  Updated to reflect two-foot FSR data logging and calibration status
 
 import SwiftUI
 import CoreLocation
@@ -35,26 +35,8 @@ struct DebugView: View {
 
                             logManager.triggerUpdate(
                                 runtime: runtime,
-                                fsr1: logItemServer.latestFSR1,
-                                fsr2: logItemServer.latestFSR2,
-                                fsr3: logItemServer.latestFSR3,
-                                fsr4: logItemServer.latestFSR4,
-                                fsr1_raw: logItemServer.latestFSR1_raw,
-                                fsr2_raw: logItemServer.latestFSR2_raw,
-                                fsr3_raw: logItemServer.latestFSR3_raw,
-                                fsr4_raw: logItemServer.latestFSR4_raw,
-                                fsr1_norm: logItemServer.latestFSR1_norm,
-                                fsr2_norm: logItemServer.latestFSR2_norm,
-                                fsr3_norm: logItemServer.latestFSR3_norm,
-                                fsr4_norm: logItemServer.latestFSR4_norm,
-                                fsr1_baseline: logItemServer.latestFSR1_baseline,
-                                fsr2_baseline: logItemServer.latestFSR2_baseline,
-                                fsr3_baseline: logItemServer.latestFSR3_baseline,
-                                fsr4_baseline: logItemServer.latestFSR4_baseline,
-                                fsr1_max: logItemServer.latestFSR1_max,
-                                fsr2_max: logItemServer.latestFSR2_max,
-                                fsr3_max: logItemServer.latestFSR3_max,
-                                fsr4_max: logItemServer.latestFSR4_max,
+                                leftFoot: logItemServer.leftFoot,
+                                rightFoot: logItemServer.rightFoot,
                                 calibrationStatus: logItemServer.statusMessage
                             )
                         }.font(.subheadline)
@@ -63,21 +45,15 @@ struct DebugView: View {
                         Image(systemName: "bolt")
                         Text("Status: \(logItemServer.statusMessage)").font(.subheadline)
                     }
-                    HStack {
-                        Image(systemName: "1.circle")
-                        Text("FSR1: \(logItemServer.latestFSR1)").font(.subheadline)
-                    }
-                    HStack {
-                        Image(systemName: "2.circle")
-                        Text("FSR2: \(logItemServer.latestFSR2)").font(.subheadline)
-                    }
-                    HStack {
-                        Image(systemName: "3.circle")
-                        Text("FSR3: \(logItemServer.latestFSR3)").font(.subheadline)
-                    }
-                    HStack {
-                        Image(systemName: "4.circle")
-                        Text("FSR4: \(logItemServer.latestFSR4)").font(.subheadline)
+                    Group {
+                        HStack { Image(systemName: "1.circle"); Text("Left FSR1: \(logItemServer.leftFoot.fsr1)").font(.subheadline) }
+                        HStack { Image(systemName: "2.circle"); Text("Left FSR2: \(logItemServer.leftFoot.fsr2)").font(.subheadline) }
+                        HStack { Image(systemName: "3.circle"); Text("Left FSR3: \(logItemServer.leftFoot.fsr3)").font(.subheadline) }
+                        HStack { Image(systemName: "4.circle"); Text("Left FSR4: \(logItemServer.leftFoot.fsr4)").font(.subheadline) }
+                        HStack { Image(systemName: "1.circle.fill"); Text("Right FSR1: \(logItemServer.rightFoot.fsr1)").font(.subheadline) }
+                        HStack { Image(systemName: "2.circle.fill"); Text("Right FSR2: \(logItemServer.rightFoot.fsr2)").font(.subheadline) }
+                        HStack { Image(systemName: "3.circle.fill"); Text("Right FSR3: \(logItemServer.rightFoot.fsr3)").font(.subheadline) }
+                        HStack { Image(systemName: "4.circle.fill"); Text("Right FSR4: \(logItemServer.rightFoot.fsr4)").font(.subheadline) }
                     }
                     HStack {
                         Image(systemName: "iphone")
@@ -129,4 +105,3 @@ struct DebugView: View {
         }
     }
 }
-
