@@ -16,10 +16,12 @@ struct ClientData {
 
 class LogItemServer: ObservableObject {
     
-@Published var latestFSR1: Int = 0
-@Published var latestFSR2: Int = 0
-@Published var latestFSR3: Int = 0
-@Published var latestFSR4: Int = 0
+    @Published var latestFSR1: Int = 0
+    @Published var latestFSR2: Int = 0
+    @Published var latestFSR3: Int = 0
+    @Published var latestFSR4: Int = 0
+    
+    @Published var latestStatus: String = ""  // NEW: calibration or system status
 
     private var listener: NWListener
     private var connections: [ConnectionData] = []
@@ -46,6 +48,7 @@ class LogItemServer: ObservableObject {
     }
 
     private func handleNewConnection(connection: NWConnection) {
+        // Cancel previous connections to only track one ESP32 board
         connections.forEach { $0.connection.cancel() }
         connections.removeAll()
         let connectionData = ConnectionData(connection: connection, id: UUID(), clientData: ClientData())
@@ -83,7 +86,11 @@ class LogItemServer: ObservableObject {
                         if components.count == 2 {
                             let key = components[0]
                             let valueString = components[1]
-                            if let intValue = Int(valueString) {
+
+                            if key == "status" {
+                                self.latestStatus = valueString
+                                print("🟢 CALIBRATION STATUS: \(valueString)")
+                            } else if let intValue = Int(valueString) {
                                 switch key {
                                 case "fsr1":
                                     connectionData.clientData.fsr1 = intValue
@@ -103,6 +110,7 @@ class LogItemServer: ObservableObject {
                             }
                         }
                     }
+
                     self.connections[index] = connectionData
                 }
             }
