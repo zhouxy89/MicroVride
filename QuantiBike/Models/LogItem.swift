@@ -1,17 +1,12 @@
 //  LogItem.swift
 //  QuantiBike
-//  Extended for 4 FSR sensors with raw, norm, baseline, max, and status logging
+//  Updated for two-foot FSR logging (raw, norm, baseline, max, and status)
 
 import Foundation
 import CoreMotion
 import CoreLocation
 
-struct LogItem {
-    let timestamp: TimeInterval
-    let phoneAcceleration: CMAccelerometerData?
-    let phoneMotionData: CMDeviceMotion?
-    let phoneBattery: Float
-
+struct FootSensorData {
     let fsr1: Int
     let fsr2: Int
     let fsr3: Int
@@ -21,36 +16,67 @@ struct LogItem {
     let fsr2_raw: Int
     let fsr3_raw: Int
     let fsr4_raw: Int
+
     let fsr1_norm: Float
     let fsr2_norm: Float
     let fsr3_norm: Float
     let fsr4_norm: Float
+
     let fsr1_baseline: Int
     let fsr2_baseline: Int
     let fsr3_baseline: Int
     let fsr4_baseline: Int
+
     let fsr1_max: Int
     let fsr2_max: Int
     let fsr3_max: Int
     let fsr4_max: Int
-    let calibrationStatus: String
+}
 
+struct LogItem {
+    let timestamp: TimeInterval
+    let phoneAcceleration: CMAccelerometerData?
+    let phoneMotionData: CMDeviceMotion?
+    let phoneBattery: Float
+
+    let leftFoot: FootSensorData
+    let rightFoot: FootSensorData
+
+    let calibrationStatus: String
     let locationData: CLLocation?
 
     var dictionary: [String: Any] {
         var result: [String: Any] = [
             "timestamp": String(timestamp),
             "phoneBattery": String(phoneBattery),
-            "fsr1": fsr1, "fsr2": fsr2, "fsr3": fsr3, "fsr4": fsr4,
-            "fsr1_raw": fsr1_raw, "fsr2_raw": fsr2_raw, "fsr3_raw": fsr3_raw, "fsr4_raw": fsr4_raw,
-            "fsr1_norm": fsr1_norm, "fsr2_norm": fsr2_norm, "fsr3_norm": fsr3_norm, "fsr4_norm": fsr4_norm,
-            "fsr1_baseline": fsr1_baseline, "fsr2_baseline": fsr2_baseline, "fsr3_baseline": fsr3_baseline, "fsr4_baseline": fsr4_baseline,
-            "fsr1_max": fsr1_max, "fsr2_max": fsr2_max, "fsr3_max": fsr3_max, "fsr4_max": fsr4_max,
             "calibrationStatus": calibrationStatus,
             "acceleration": preparePhoneAcc(),
             "locationData": prepareLocationData(locationData: locationData),
             "unixTimeStamp": String(Date().timeIntervalSince1970)
         ]
+
+        for (prefix, foot) in [("left", leftFoot), ("right", rightFoot)] {
+            result["\(prefix)FSR1"] = foot.fsr1
+            result["\(prefix)FSR2"] = foot.fsr2
+            result["\(prefix)FSR3"] = foot.fsr3
+            result["\(prefix)FSR4"] = foot.fsr4
+            result["\(prefix)FSR1_raw"] = foot.fsr1_raw
+            result["\(prefix)FSR2_raw"] = foot.fsr2_raw
+            result["\(prefix)FSR3_raw"] = foot.fsr3_raw
+            result["\(prefix)FSR4_raw"] = foot.fsr4_raw
+            result["\(prefix)FSR1_norm"] = foot.fsr1_norm
+            result["\(prefix)FSR2_norm"] = foot.fsr2_norm
+            result["\(prefix)FSR3_norm"] = foot.fsr3_norm
+            result["\(prefix)FSR4_norm"] = foot.fsr4_norm
+            result["\(prefix)FSR1_baseline"] = foot.fsr1_baseline
+            result["\(prefix)FSR2_baseline"] = foot.fsr2_baseline
+            result["\(prefix)FSR3_baseline"] = foot.fsr3_baseline
+            result["\(prefix)FSR4_baseline"] = foot.fsr4_baseline
+            result["\(prefix)FSR1_max"] = foot.fsr1_max
+            result["\(prefix)FSR2_max"] = foot.fsr2_max
+            result["\(prefix)FSR3_max"] = foot.fsr3_max
+            result["\(prefix)FSR4_max"] = foot.fsr4_max
+        }
 
         for (key, value) in prepareMotionData(motionData: phoneMotionData) {
             result[key] = value
