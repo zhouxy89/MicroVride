@@ -1,5 +1,6 @@
-// === Updated DebugView.swift ===
-// Displays FSR values and live calibration status in field study
+//  DebugView.swift
+//  QuantiBike
+//  Updated to reflect new full FSR data logging and calibration status
 
 import SwiftUI
 import CoreLocation
@@ -27,79 +28,92 @@ struct DebugView: View {
                     Text("Subject ID " + subjectId).font(.subheadline)
                 }
                 List {
-                    Section(header: Text("Runtime")) {
-                        HStack {
-                            Image(systemName: "clock")
-                            Text(stringFromTime(interval: runtime)).onReceive(timer) { _ in
-                                runtime = Date().timeIntervalSinceReferenceDate - startTime.timeIntervalSinceReferenceDate
-                                logManager.triggerUpdate(
-                                    runtime: runtime,
-                                    fsr1: logItemServer.latestFSR1,
-                                    fsr2: logItemServer.latestFSR2,
-                                    fsr3: logItemServer.latestFSR3,
-                                    fsr4: logItemServer.latestFSR4
-                                )
-                            }.font(.subheadline)
+                    HStack {
+                        Image(systemName: "clock")
+                        Text(stringFromTime(interval: runtime)).onReceive(timer) { _ in
+                            runtime = Date().timeIntervalSinceReferenceDate - startTime.timeIntervalSinceReferenceDate
+
+                            logManager.triggerUpdate(
+                                runtime: runtime,
+                                fsr1: logItemServer.latestFSR1,
+                                fsr2: logItemServer.latestFSR2,
+                                fsr3: logItemServer.latestFSR3,
+                                fsr4: logItemServer.latestFSR4,
+                                fsr1_raw: logItemServer.latestFSR1_raw,
+                                fsr2_raw: logItemServer.latestFSR2_raw,
+                                fsr3_raw: logItemServer.latestFSR3_raw,
+                                fsr4_raw: logItemServer.latestFSR4_raw,
+                                fsr1_norm: logItemServer.latestFSR1_norm,
+                                fsr2_norm: logItemServer.latestFSR2_norm,
+                                fsr3_norm: logItemServer.latestFSR3_norm,
+                                fsr4_norm: logItemServer.latestFSR4_norm,
+                                fsr1_baseline: logItemServer.latestFSR1_baseline,
+                                fsr2_baseline: logItemServer.latestFSR2_baseline,
+                                fsr3_baseline: logItemServer.latestFSR3_baseline,
+                                fsr4_baseline: logItemServer.latestFSR4_baseline,
+                                fsr1_max: logItemServer.latestFSR1_max,
+                                fsr2_max: logItemServer.latestFSR2_max,
+                                fsr3_max: logItemServer.latestFSR3_max,
+                                fsr4_max: logItemServer.latestFSR4_max,
+                                calibrationStatus: logItemServer.statusMessage
+                            )
+                        }.font(.subheadline)
+                    }
+                    HStack {
+                        Image(systemName: "bolt")
+                        Text("Status: \(logItemServer.statusMessage)").font(.subheadline)
+                    }
+                    HStack {
+                        Image(systemName: "1.circle")
+                        Text("FSR1: \(logItemServer.latestFSR1)").font(.subheadline)
+                    }
+                    HStack {
+                        Image(systemName: "2.circle")
+                        Text("FSR2: \(logItemServer.latestFSR2)").font(.subheadline)
+                    }
+                    HStack {
+                        Image(systemName: "3.circle")
+                        Text("FSR3: \(logItemServer.latestFSR3)").font(.subheadline)
+                    }
+                    HStack {
+                        Image(systemName: "4.circle")
+                        Text("FSR4: \(logItemServer.latestFSR4)").font(.subheadline)
+                    }
+                    HStack {
+                        Image(systemName: "iphone")
+                        if logManager.motionManager.deviceMotion != nil {
+                            Text("\(logManager.motionManager.deviceMotion!)").font(.subheadline)
+                        } else {
+                            Text("No Gyro Data present").font(.subheadline)
                         }
                     }
-
-                    Section(header: Text("Calibration")) {
-                        HStack {
-                            Image(systemName: "waveform.path")
-                            Text("Status: \(logItemServer.statusMessage)")
+                    HStack {
+                        Image(systemName: "speedometer")
+                        if logManager.motionManager.accelerometerData != nil {
+                            Text("\(logManager.motionManager.accelerometerData!)").font(.subheadline)
+                        } else {
+                            Text("No Acc Data present").font(.subheadline)
                         }
                     }
-
-                    Section(header: Text("FSR Sensors")) {
-                        HStack { Image(systemName: "1.circle"); Text("FSR1: \(logItemServer.latestFSR1)") }
-                        HStack { Image(systemName: "2.circle"); Text("FSR2: \(logItemServer.latestFSR2)") }
-                        HStack { Image(systemName: "3.circle"); Text("FSR3: \(logItemServer.latestFSR3)") }
-                        HStack { Image(systemName: "4.circle"); Text("FSR4: \(logItemServer.latestFSR4)") }
-                    }
-
-                    Section(header: Text("Device Motion")) {
-                        HStack {
-                            Image(systemName: "iphone")
-                            if logManager.motionManager.deviceMotion != nil {
-                                Text("\(logManager.motionManager.deviceMotion!)").font(.subheadline)
-                            } else {
-                                Text("No Gyro Data present").font(.subheadline)
-                            }
-                        }
-                        HStack {
-                            Image(systemName: "speedometer")
-                            if logManager.motionManager.accelerometerData != nil {
-                                Text("\(logManager.motionManager.accelerometerData!)").font(.subheadline)
-                            } else {
-                                Text("No Acc Data present").font(.subheadline)
-                            }
-                        }
-                    }
-
-                    Section(header: Text("GPS Location")) {
-                        HStack {
-                            Image(systemName: "safari")
-                            Text("Lon: \(logManager.getLongitude()), Lat: \(logManager.getLatitude()), Alt: \(logManager.getAltitude())").font(.subheadline)
-                        }
+                    HStack {
+                        Image(systemName: "safari")
+                        Text("Longitude: \(logManager.getLongitude()), Latitude: \(logManager.getLatitude()), Altitude: \(logManager.getAltitude())").font(.subheadline)
                     }
                 }
-
                 Spacer()
-                Button("Save CSV", role: .destructive) {
+                Button("Save CSV", role: .destructive, action: {
                     logManager.saveCSV()
                     debug = false
-                }.buttonStyle(.borderedProminent)
+                }).buttonStyle(.borderedProminent)
             }
-        }
-        .onAppear {
+        }.onAppear(perform: {
             preventSleep()
             logManager.setSubjectId(subjectId: subjectId)
             logManager.setMode(mode: "debug")
             logManager.setStartTime(startTime: startTime)
-        }
-        .onDisappear {
+        }).onDisappear(perform: {
             logManager.stopUpdates()
-        }
+        })
     }
 
     func stringFromTime(interval: TimeInterval) -> String {
@@ -110,7 +124,7 @@ struct DebugView: View {
     }
 
     func preventSleep() {
-        if UIApplication.shared.isIdleTimerDisabled == false {
+        if !UIApplication.shared.isIdleTimerDisabled {
             UIApplication.shared.isIdleTimerDisabled = true
         }
     }
