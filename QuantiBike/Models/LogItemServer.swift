@@ -39,6 +39,23 @@ class LogItemServer: ObservableObject {
     @Published var latestFSR2: Int = 0
     @Published var latestFSR3: Int = 0
     @Published var latestFSR4: Int = 0
+    @Published var latestFSR1_raw: Int = 0
+    @Published var latestFSR2_raw: Int = 0
+    @Published var latestFSR3_raw: Int = 0
+    @Published var latestFSR4_raw: Int = 0
+    @Published var latestFSR1_norm: Float = 0
+    @Published var latestFSR2_norm: Float = 0
+    @Published var latestFSR3_norm: Float = 0
+    @Published var latestFSR4_norm: Float = 0
+    @Published var latestFSR1_baseline: Int = 0
+    @Published var latestFSR2_baseline: Int = 0
+    @Published var latestFSR3_baseline: Int = 0
+    @Published var latestFSR4_baseline: Int = 0
+    @Published var latestFSR1_max: Int = 1
+    @Published var latestFSR2_max: Int = 1
+    @Published var latestFSR3_max: Int = 1
+    @Published var latestFSR4_max: Int = 1
+
 
     @Published var statusMessage: String = ""
 
