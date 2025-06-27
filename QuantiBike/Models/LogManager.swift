@@ -1,7 +1,6 @@
 //  LogManager.swift
 //  QuantiBike
-//
-//  Updated for 4 FSR sensor logging on 2025-04-10
+//  Updated for 4 FSR sensor logging and extended calibration values on 2025-06-27
 
 import Foundation
 import CoreMotion
@@ -18,6 +17,25 @@ class LogManager: NSObject, ObservableObject {
     private var mode: String = "not_defined"
 
     @Published var runtime = 0.0
+    
+    // Calibration data storage (latest known)
+    var latestFSR1_raw: Int = 0
+    var latestFSR2_raw: Int = 0
+    var latestFSR3_raw: Int = 0
+    var latestFSR4_raw: Int = 0
+    var latestFSR1_norm: Float = 0
+    var latestFSR2_norm: Float = 0
+    var latestFSR3_norm: Float = 0
+    var latestFSR4_norm: Float = 0
+    var latestFSR1_baseline: Int = 0
+    var latestFSR2_baseline: Int = 0
+    var latestFSR3_baseline: Int = 0
+    var latestFSR4_baseline: Int = 0
+    var latestFSR1_max: Int = 1
+    var latestFSR2_max: Int = 1
+    var latestFSR3_max: Int = 1
+    var latestFSR4_max: Int = 1
+    var latestStatus: String = ""
 
     var latitude: String {
         return "\(LocationManager.shared.lastLocation?.coordinate.latitude ?? 0)"
@@ -31,11 +49,9 @@ class LogManager: NSObject, ObservableObject {
 
     override init() {
         super.init()
-        // Enable battery tracking
         if !UIDevice.current.isBatteryMonitoringEnabled {
             UIDevice.current.isBatteryMonitoringEnabled = true
         }
-        // Start Motion Updates
         if motionManager.isAccelerometerAvailable {
             motionManager.startDeviceMotionUpdates(using: .xArbitraryZVertical)
             motionManager.startGyroUpdates()
@@ -60,6 +76,23 @@ class LogManager: NSObject, ObservableObject {
             fsr2: fsr2,
             fsr3: fsr3,
             fsr4: fsr4,
+            fsr1_raw: latestFSR1_raw,
+            fsr2_raw: latestFSR2_raw,
+            fsr3_raw: latestFSR3_raw,
+            fsr4_raw: latestFSR4_raw,
+            fsr1_norm: latestFSR1_norm,
+            fsr2_norm: latestFSR2_norm,
+            fsr3_norm: latestFSR3_norm,
+            fsr4_norm: latestFSR4_norm,
+            fsr1_baseline: latestFSR1_baseline,
+            fsr2_baseline: latestFSR2_baseline,
+            fsr3_baseline: latestFSR3_baseline,
+            fsr4_baseline: latestFSR4_baseline,
+            fsr1_max: latestFSR1_max,
+            fsr2_max: latestFSR2_max,
+            fsr3_max: latestFSR3_max,
+            fsr4_max: latestFSR4_max,
+            calibrationStatus: latestStatus,
             phoneAcceleration: motionManager.accelerometerData,
             phoneMotionData: motionManager.deviceMotion,
             locationData: LocationManager.shared.lastLocation
@@ -106,7 +139,6 @@ class LogManager: NSObject, ObservableObject {
         return infos
     }
 
-    // MARK: Save JSON Log
     func saveCSV() {
         let fileManager = FileManager.default
         do {
