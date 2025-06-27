@@ -46,7 +46,7 @@ struct DebugView: View {
                     Section(header: Text("Calibration")) {
                         HStack {
                             Image(systemName: "waveform.path")
-                            Text("Status: \(logItemServer.calibrationStatus)")
+                            Text("Status: \(logItemServer.statusMessage)")
                         }
                     }
 
