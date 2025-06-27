@@ -1,90 +1,107 @@
+//  LogItemServer.swift
+//  Handles two-foot FSR sensor data
+
 import Foundation
 import Network
 
+struct FootSensorData {
+    var fsr1: Int = 0, fsr2: Int = 0, fsr3: Int = 0, fsr4: Int = 0
+    var fsr1_raw: Int = 0, fsr2_raw: Int = 0, fsr3_raw: Int = 0, fsr4_raw: Int = 0
+    var fsr1_baseline: Int = 0, fsr2_baseline: Int = 0, fsr3_baseline: Int = 0, fsr4_baseline: Int = 0
+    var fsr1_max: Int = 1, fsr2_max: Int = 1, fsr3_max: Int = 1, fsr4_max: Int = 1
+    var fsr1_norm: Float = 0.0, fsr2_norm: Float = 0.0, fsr3_norm: Float = 0.0, fsr4_norm: Float = 0.0
+}
+
 class LogItemServer: ObservableObject {
+    @Published var leftFoot = FootSensorData()
+    @Published var rightFoot = FootSensorData()
     @Published var statusMessage: String = ""
-    @Published var leftFoot = FSRFootData(fsr1: 0, fsr2: 0, fsr3: 0, fsr4: 0,
-                                          fsr1_raw: 0, fsr2_raw: 0, fsr3_raw: 0, fsr4_raw: 0,
-                                          fsr1_norm: 0, fsr2_norm: 0, fsr3_norm: 0, fsr4_norm: 0,
-                                          fsr1_baseline: 0, fsr2_baseline: 0, fsr3_baseline: 0, fsr4_baseline: 0,
-                                          fsr1_max: 1, fsr2_max: 1, fsr3_max: 1, fsr4_max: 1)
-    @Published var rightFoot = FSRFootData(fsr1: 0, fsr2: 0, fsr3: 0, fsr4: 0,
-                                           fsr1_raw: 0, fsr2_raw: 0, fsr3_raw: 0, fsr4_raw: 0,
-                                           fsr1_norm: 0, fsr2_norm: 0, fsr3_norm: 0, fsr4_norm: 0,
-                                           fsr1_baseline: 0, fsr2_baseline: 0, fsr3_baseline: 0, fsr4_baseline: 0,
-                                           fsr1_max: 1, fsr2_max: 1, fsr3_max: 1, fsr4_max: 1)
 
     private var listener: NWListener
-    private var latestBoard = ""
+    private var connections: [NWConnection] = []
 
-    init(port: UInt16 = 12345) throws {
-        self.listener = try NWListener(using: .tcp, on: NWEndpoint.Port(rawValue: port)!)
+    init(port: NWEndpoint.Port) throws {
+        listener = try NWListener(using: .tcp, on: port)
     }
 
     func start() {
-        listener.newConnectionHandler = handle
+        listener.stateUpdateHandler = { state in
+            if case .ready = state { print("Server ready") }
+        }
+        listener.newConnectionHandler = { [weak self] connection in
+            self?.handleNewConnection(connection)
+        }
         listener.start(queue: .main)
     }
 
-    private func handle(_ connection: NWConnection) {
+    private func handleNewConnection(_ connection: NWConnection) {
         connection.start(queue: .main)
+        connections.append(connection)
         receive(on: connection)
     }
 
     private func receive(on connection: NWConnection) {
-        connection.receive(minimumIncompleteLength: 1, maximumLength: 4096) { data, _, isComplete, error in
+        connection.receive(minimumIncompleteLength: 1, maximumLength: 4096) { [weak self] data, _, isComplete, _ in
+            guard let self = self else { return }
             if let data = data, let string = String(data: data, encoding: .utf8) {
                 self.handleMessage(string)
             }
-            if !isComplete && error == nil {
+            if isComplete {
+                connection.cancel()
+                self.connections.removeAll { $0 === connection }
+            } else {
                 self.receive(on: connection)
             }
         }
     }
 
-    private func handleMessage(_ string: String) {
-        let pairs = string.components(separatedBy: "&")
-        var data = [String: String]()
-        for pair in pairs {
-            let components = pair.components(separatedBy: "=")
-            if components.count == 2 {
-                data[components[0]] = components[1]
-            }
-        }
-
-        if let status = data["status"] {
-            DispatchQueue.main.async { self.statusMessage = status }
-        }
-
-        let board = data["board"] ?? "board1"
-        let target = board == "board1" ? "leftFoot" : "rightFoot"
-
-        var updated = FSRFootData(
-            fsr1: 0, fsr2: 0, fsr3: 0, fsr4: 0,
-            fsr1_raw: 0, fsr2_raw: 0, fsr3_raw: 0, fsr4_raw: 0,
-            fsr1_norm: 0, fsr2_norm: 0, fsr3_norm: 0, fsr4_norm: 0,
-            fsr1_baseline: 0, fsr2_baseline: 0, fsr3_baseline: 0, fsr4_baseline: 0,
-            fsr1_max: 1, fsr2_max: 1, fsr3_max: 1, fsr4_max: 1
-        )
-
-        for i in 1...4 {
-            updated[keyPath: \FSRFootData.fsr1 + i - 1] = Int(data["fsr\(i)"] ?? "0") ?? 0
-            updated[keyPath: \FSRFootData.fsr1_raw + i - 1] = Int(data["fsr\(i)_raw"] ?? "0") ?? 0
-            updated[keyPath: \FSRFootData.fsr1_norm + i - 1] = Float(data["fsr\(i)_norm"] ?? "0") ?? 0
-            updated[keyPath: \FSRFootData.fsr1_baseline + i - 1] = Int(data["fsr\(i)_baseline"] ?? "0") ?? 0
-            updated[keyPath: \FSRFootData.fsr1_max + i - 1] = Int(data["fsr\(i)_max"] ?? "1") ?? 1
-        }
+    private func handleMessage(_ msg: String) {
+        let pairs = msg.split(separator: "&").map { $0.split(separator: "=").map(String.init) }
+        var target = msg.contains("board=right") ? &rightFoot : &leftFoot
 
         DispatchQueue.main.async {
-            if target == "leftFoot" {
-                self.leftFoot = updated
-            } else {
-                self.rightFoot = updated
+            for pair in pairs where pair.count == 2 {
+                let key = pair[0], value = pair[1]
+
+                if key == "status" { self.statusMessage = value; continue }
+
+                guard let intVal = Int(value) else { continue }
+                switch key {
+                    case "fsr1": target.fsr1 = intVal
+                    case "fsr2": target.fsr2 = intVal
+                    case "fsr3": target.fsr3 = intVal
+                    case "fsr4": target.fsr4 = intVal
+                    case "fsr1_raw": target.fsr1_raw = intVal
+                    case "fsr2_raw": target.fsr2_raw = intVal
+                    case "fsr3_raw": target.fsr3_raw = intVal
+                    case "fsr4_raw": target.fsr4_raw = intVal
+                    case "fsr1_baseline": target.fsr1_baseline = intVal
+                    case "fsr2_baseline": target.fsr2_baseline = intVal
+                    case "fsr3_baseline": target.fsr3_baseline = intVal
+                    case "fsr4_baseline": target.fsr4_baseline = intVal
+                    case "fsr1_max": target.fsr1_max = intVal
+                    case "fsr2_max": target.fsr2_max = intVal
+                    case "fsr3_max": target.fsr3_max = intVal
+                    case "fsr4_max": target.fsr4_max = intVal
+                    default: break
+                }
+
+                if let floatVal = Float(value) {
+                    switch key {
+                        case "fsr1_norm": target.fsr1_norm = floatVal
+                        case "fsr2_norm": target.fsr2_norm = floatVal
+                        case "fsr3_norm": target.fsr3_norm = floatVal
+                        case "fsr4_norm": target.fsr4_norm = floatVal
+                        default: break
+                    }
+                }
             }
         }
     }
 
     func stop() {
         listener.cancel()
+        connections.forEach { $0.cancel() }
+        connections.removeAll()
     }
 }
