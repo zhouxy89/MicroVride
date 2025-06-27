@@ -1,3 +1,7 @@
+//  LogItem.swift
+//  QuantiBike
+//  Extended for 4 FSR sensors with raw, norm, baseline, max, and status logging
+
 import Foundation
 import CoreMotion
 import CoreLocation
@@ -7,49 +11,48 @@ struct LogItem {
     let phoneAcceleration: CMAccelerometerData?
     let phoneMotionData: CMDeviceMotion?
     let phoneBattery: Float
+
     let fsr1: Int
     let fsr2: Int
     let fsr3: Int
     let fsr4: Int
+
+    let fsr1_raw: Int
+    let fsr2_raw: Int
+    let fsr3_raw: Int
+    let fsr4_raw: Int
+    let fsr1_norm: Float
+    let fsr2_norm: Float
+    let fsr3_norm: Float
+    let fsr4_norm: Float
+    let fsr1_baseline: Int
+    let fsr2_baseline: Int
+    let fsr3_baseline: Int
+    let fsr4_baseline: Int
+    let fsr1_max: Int
+    let fsr2_max: Int
+    let fsr3_max: Int
+    let fsr4_max: Int
+    let calibrationStatus: String
+
     let locationData: CLLocation?
 
-    init(timestamp: TimeInterval,
-         phoneBattery: Float,
-         fsr1: Int,
-         fsr2: Int,
-         fsr3: Int,
-         fsr4: Int,
-         phoneAcceleration: CMAccelerometerData? = nil,
-         phoneMotionData: CMDeviceMotion? = nil,
-         locationData: CLLocation?) {
-        
-        self.timestamp = timestamp
-        self.phoneAcceleration = phoneAcceleration
-        self.phoneMotionData = phoneMotionData
-        self.phoneBattery = phoneBattery
-        self.fsr1 = fsr1
-        self.fsr2 = fsr2
-        self.fsr3 = fsr3
-        self.fsr4 = fsr4
-        self.locationData = locationData
-    }
-    
     var dictionary: [String: Any] {
         var result: [String: Any] = [
             "timestamp": String(timestamp),
             "phoneBattery": String(phoneBattery),
-            "fsr1": fsr1,
-            "fsr2": fsr2,
-            "fsr3": fsr3,
-            "fsr4": fsr4,
+            "fsr1": fsr1, "fsr2": fsr2, "fsr3": fsr3, "fsr4": fsr4,
+            "fsr1_raw": fsr1_raw, "fsr2_raw": fsr2_raw, "fsr3_raw": fsr3_raw, "fsr4_raw": fsr4_raw,
+            "fsr1_norm": fsr1_norm, "fsr2_norm": fsr2_norm, "fsr3_norm": fsr3_norm, "fsr4_norm": fsr4_norm,
+            "fsr1_baseline": fsr1_baseline, "fsr2_baseline": fsr2_baseline, "fsr3_baseline": fsr3_baseline, "fsr4_baseline": fsr4_baseline,
+            "fsr1_max": fsr1_max, "fsr2_max": fsr2_max, "fsr3_max": fsr3_max, "fsr4_max": fsr4_max,
+            "calibrationStatus": calibrationStatus,
             "acceleration": preparePhoneAcc(),
             "locationData": prepareLocationData(locationData: locationData),
             "unixTimeStamp": String(Date().timeIntervalSince1970)
         ]
 
-        // Add motion data
-        let motionData = prepareMotionData(motionData: phoneMotionData)
-        for (key, value) in motionData {
+        for (key, value) in prepareMotionData(motionData: phoneMotionData) {
             result[key] = value
         }
 
