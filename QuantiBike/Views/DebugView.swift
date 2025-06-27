@@ -1,6 +1,6 @@
 //  DebugView.swift
 //  QuantiBike
-//  Updated to reflect two-foot FSR data logging and calibration status
+//  Updated to handle both left and right foot FSR data and calibration
 
 import SwiftUI
 import CoreLocation
@@ -32,11 +32,10 @@ struct DebugView: View {
                         Image(systemName: "clock")
                         Text(stringFromTime(interval: runtime)).onReceive(timer) { _ in
                             runtime = Date().timeIntervalSinceReferenceDate - startTime.timeIntervalSinceReferenceDate
-
                             logManager.triggerUpdate(
                                 runtime: runtime,
-                                leftFoot: logItemServer.leftFoot,
-                                rightFoot: logItemServer.rightFoot,
+                                left: logItemServer.leftFoot,
+                                right: logItemServer.rightFoot,
                                 calibrationStatus: logItemServer.statusMessage
                             )
                         }.font(.subheadline)
@@ -46,15 +45,15 @@ struct DebugView: View {
                         Text("Status: \(logItemServer.statusMessage)").font(.subheadline)
                     }
                     Group {
-                        HStack { Image(systemName: "1.circle"); Text("Left FSR1: \(logItemServer.leftFoot.fsr1)").font(.subheadline) }
-                        HStack { Image(systemName: "2.circle"); Text("Left FSR2: \(logItemServer.leftFoot.fsr2)").font(.subheadline) }
-                        HStack { Image(systemName: "3.circle"); Text("Left FSR3: \(logItemServer.leftFoot.fsr3)").font(.subheadline) }
-                        HStack { Image(systemName: "4.circle"); Text("Left FSR4: \(logItemServer.leftFoot.fsr4)").font(.subheadline) }
-                        HStack { Image(systemName: "1.circle.fill"); Text("Right FSR1: \(logItemServer.rightFoot.fsr1)").font(.subheadline) }
-                        HStack { Image(systemName: "2.circle.fill"); Text("Right FSR2: \(logItemServer.rightFoot.fsr2)").font(.subheadline) }
-                        HStack { Image(systemName: "3.circle.fill"); Text("Right FSR3: \(logItemServer.rightFoot.fsr3)").font(.subheadline) }
-                        HStack { Image(systemName: "4.circle.fill"); Text("Right FSR4: \(logItemServer.rightFoot.fsr4)").font(.subheadline) }
-                    }
+                        HStack { Text("LEFT FSR1: \(logItemServer.leftFoot.fsr1)") }
+                        HStack { Text("LEFT FSR2: \(logItemServer.leftFoot.fsr2)") }
+                        HStack { Text("LEFT FSR3: \(logItemServer.leftFoot.fsr3)") }
+                        HStack { Text("LEFT FSR4: \(logItemServer.leftFoot.fsr4)") }
+                        HStack { Text("RIGHT FSR1: \(logItemServer.rightFoot.fsr1)") }
+                        HStack { Text("RIGHT FSR2: \(logItemServer.rightFoot.fsr2)") }
+                        HStack { Text("RIGHT FSR3: \(logItemServer.rightFoot.fsr3)") }
+                        HStack { Text("RIGHT FSR4: \(logItemServer.rightFoot.fsr4)") }
+                    }.font(.subheadline)
                     HStack {
                         Image(systemName: "iphone")
                         if logManager.motionManager.deviceMotion != nil {
@@ -105,3 +104,4 @@ struct DebugView: View {
         }
     }
 }
+
