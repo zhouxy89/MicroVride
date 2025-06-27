@@ -57,15 +57,26 @@ class LogItemServer: ObservableObject {
 
     private func handleMessage(_ msg: String) {
         let pairs = msg.split(separator: "&").map { $0.split(separator: "=").map(String.init) }
-        var target = msg.contains("board=right") ? &rightFoot : &leftFoot
 
         DispatchQueue.main.async {
-            for pair in pairs where pair.count == 2 {
-                let key = pair[0], value = pair[1]
+            if msg.contains("board=right") {
+                self.updateSensorData(&self.rightFoot, with: pairs)
+            } else {
+                self.updateSensorData(&self.leftFoot, with: pairs)
+            }
+        }
+    }
 
-                if key == "status" { self.statusMessage = value; continue }
+    private func updateSensorData(_ target: inout FootSensorData, with pairs: [[String]]) {
+        for pair in pairs where pair.count == 2 {
+            let key = pair[0], value = pair[1]
 
-                guard let intVal = Int(value) else { continue }
+            if key == "status" {
+                self.statusMessage = value
+                continue
+            }
+
+            if let intVal = Int(value) {
                 switch key {
                     case "fsr1": target.fsr1 = intVal
                     case "fsr2": target.fsr2 = intVal
@@ -85,15 +96,15 @@ class LogItemServer: ObservableObject {
                     case "fsr4_max": target.fsr4_max = intVal
                     default: break
                 }
+            }
 
-                if let floatVal = Float(value) {
-                    switch key {
-                        case "fsr1_norm": target.fsr1_norm = floatVal
-                        case "fsr2_norm": target.fsr2_norm = floatVal
-                        case "fsr3_norm": target.fsr3_norm = floatVal
-                        case "fsr4_norm": target.fsr4_norm = floatVal
-                        default: break
-                    }
+            if let floatVal = Float(value) {
+                switch key {
+                    case "fsr1_norm": target.fsr1_norm = floatVal
+                    case "fsr2_norm": target.fsr2_norm = floatVal
+                    case "fsr3_norm": target.fsr3_norm = floatVal
+                    case "fsr4_norm": target.fsr4_norm = floatVal
+                    default: break
                 }
             }
         }
@@ -105,3 +116,4 @@ class LogItemServer: ObservableObject {
         connections.removeAll()
     }
 }
+
