@@ -1,6 +1,6 @@
 //  DebugView.swift
 //  QuantiBike
-//  Updated to handle both left and right foot FSR data and calibration
+//  Updated to support dual foot sensor data and calibration status display
 
 import SwiftUI
 import CoreLocation
@@ -25,7 +25,7 @@ struct DebugView: View {
                 Spacer()
                 HStack {
                     Image(systemName: "person.circle")
-                    Text("Subject ID " + subjectId).font(.subheadline)
+                    Text("Subject ID \(subjectId)").font(.subheadline)
                 }
                 List {
                     HStack {
@@ -36,72 +36,63 @@ struct DebugView: View {
                                 runtime: runtime,
                                 left: logItemServer.leftFoot,
                                 right: logItemServer.rightFoot,
-                                calibrationStatus: logItemServer.statusMessage
+                                calibrationStatus: "Left: \(logItemServer.leftStatusMessage); Right: \(logItemServer.rightStatusMessage)"
                             )
-                        }.font(.subheadline)
+                        }
                     }
                     HStack {
                         Image(systemName: "bolt")
-                        Text("Status: \(logItemServer.statusMessage)").font(.subheadline)
+                        Text("Left: \(logItemServer.leftStatusMessage)").font(.subheadline)
                     }
+                    HStack {
+                        Image(systemName: "bolt.fill")
+                        Text("Right: \(logItemServer.rightStatusMessage)").font(.subheadline)
+                    }
+
                     Group {
-                        HStack { Text("LEFT FSR1: \(logItemServer.leftFoot.fsr1)") }
-                        HStack { Text("LEFT FSR2: \(logItemServer.leftFoot.fsr2)") }
-                        HStack { Text("LEFT FSR3: \(logItemServer.leftFoot.fsr3)") }
-                        HStack { Text("LEFT FSR4: \(logItemServer.leftFoot.fsr4)") }
-                        HStack { Text("RIGHT FSR1: \(logItemServer.rightFoot.fsr1)") }
-                        HStack { Text("RIGHT FSR2: \(logItemServer.rightFoot.fsr2)") }
-                        HStack { Text("RIGHT FSR3: \(logItemServer.rightFoot.fsr3)") }
-                        HStack { Text("RIGHT FSR4: \(logItemServer.rightFoot.fsr4)") }
-                    }.font(.subheadline)
-                    HStack {
-                        Image(systemName: "iphone")
-                        if logManager.motionManager.deviceMotion != nil {
-                            Text("\(logManager.motionManager.deviceMotion!)").font(.subheadline)
-                        } else {
-                            Text("No Gyro Data present").font(.subheadline)
-                        }
+                        Text("📍 Left Foot").bold()
+                        Text("FSR1: \(logItemServer.leftFoot.fsr1), Raw: \(logItemServer.leftFoot.fsr1_raw), Norm: \(logItemServer.leftFoot.fsr1_norm)")
+                        Text("FSR2: \(logItemServer.leftFoot.fsr2), Raw: \(logItemServer.leftFoot.fsr2_raw), Norm: \(logItemServer.leftFoot.fsr2_norm)")
+                        Text("FSR3: \(logItemServer.leftFoot.fsr3), Raw: \(logItemServer.leftFoot.fsr3_raw), Norm: \(logItemServer.leftFoot.fsr3_norm)")
+                        Text("FSR4: \(logItemServer.leftFoot.fsr4), Raw: \(logItemServer.leftFoot.fsr4_raw), Norm: \(logItemServer.leftFoot.fsr4_norm)")
                     }
-                    HStack {
-                        Image(systemName: "speedometer")
-                        if logManager.motionManager.accelerometerData != nil {
-                            Text("\(logManager.motionManager.accelerometerData!)").font(.subheadline)
-                        } else {
-                            Text("No Acc Data present").font(.subheadline)
-                        }
-                    }
-                    HStack {
-                        Image(systemName: "safari")
-                        Text("Longitude: \(logManager.getLongitude()), Latitude: \(logManager.getLatitude()), Altitude: \(logManager.getAltitude())").font(.subheadline)
+
+                    Group {
+                        Text("📍 Right Foot").bold()
+                        Text("FSR1: \(logItemServer.rightFoot.fsr1), Raw: \(logItemServer.rightFoot.fsr1_raw), Norm: \(logItemServer.rightFoot.fsr1_norm)")
+                        Text("FSR2: \(logItemServer.rightFoot.fsr2), Raw: \(logItemServer.rightFoot.fsr2_raw), Norm: \(logItemServer.rightFoot.fsr2_norm)")
+                        Text("FSR3: \(logItemServer.rightFoot.fsr3), Raw: \(logItemServer.rightFoot.fsr3_raw), Norm: \(logItemServer.rightFoot.fsr3_norm)")
+                        Text("FSR4: \(logItemServer.rightFoot.fsr4), Raw: \(logItemServer.rightFoot.fsr4_raw), Norm: \(logItemServer.rightFoot.fsr4_norm)")
                     }
                 }
                 Spacer()
-                Button("Save CSV", role: .destructive, action: {
+                Button("Save CSV", role: .destructive) {
                     logManager.saveCSV()
                     debug = false
-                }).buttonStyle(.borderedProminent)
+                }
+                .buttonStyle(.borderedProminent)
+                .padding(10)
             }
-        }.onAppear(perform: {
+        }
+        .onAppear {
             preventSleep()
             logManager.setSubjectId(subjectId: subjectId)
             logManager.setMode(mode: "debug")
             logManager.setStartTime(startTime: startTime)
-        }).onDisappear(perform: {
+        }
+        .onDisappear {
             logManager.stopUpdates()
-        })
+        }
     }
 
     func stringFromTime(interval: TimeInterval) -> String {
         let ms = Int(interval.truncatingRemainder(dividingBy: 1) * 1000)
         let formatter = DateComponentsFormatter()
         formatter.allowedUnits = [.hour, .minute, .second]
-        return formatter.string(from: interval)! + ".\(ms)"
+        return (formatter.string(from: interval) ?? "") + ".\(ms)"
     }
 
     func preventSleep() {
-        if !UIApplication.shared.isIdleTimerDisabled {
-            UIApplication.shared.isIdleTimerDisabled = true
-        }
+        UIApplication.shared.isIdleTimerDisabled = true
     }
 }
-
