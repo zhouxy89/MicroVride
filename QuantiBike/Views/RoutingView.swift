@@ -1,6 +1,6 @@
 //  RoutingView.swift
 //  QuantiBike
-//  Updated for two-foot FSR sensor logging with full left/right data structure
+//  Updated to handle dual foot data logging and calibration
 
 import MapKit
 import SwiftUI
@@ -32,9 +32,11 @@ struct RoutingView: View {
                                     Text("\(announcement.distance)m").font(.title).fontWeight(.bold)
                                 }.padding(10)
                                 Text(announcement.getText()).font(.headline).padding(10)
-                            }.background(Color(.black).cornerRadius(10))
+                            }
+                            .background(Color(.black).cornerRadius(10))
                         }
-                    }.padding(10)
+                    }
+                    .padding(10)
                 }
                 .overlay(alignment: .bottomTrailing) {
                     HStack(alignment: .bottom) {
@@ -46,6 +48,7 @@ struct RoutingView: View {
                                 Image(systemName: "airpodspro")
                                     .foregroundColor(Color(.systemRed)).padding(10)
                             }
+
                             HStack {
                                 Text("\(String(format: "%03d", Int(runtime)))")
                                     .onReceive(timer) { _ in
@@ -53,28 +56,34 @@ struct RoutingView: View {
 
                                         logManager.triggerUpdate(
                                             runtime: runtime,
-                                            leftFoot: logItemServer.leftFoot,
-                                            rightFoot: logItemServer.rightFoot,
+                                            left: logItemServer.leftFoot,
+                                            right: logItemServer.rightFoot,
                                             calibrationStatus: logItemServer.statusMessage
                                         )
                                     }
                             }
+
                             Button("Finish", role: .destructive, action: {
                                 logManager.saveCSV()
                                 subjectSet = false
-                            }).buttonStyle(.borderedProminent).cornerRadius(10).padding(10)
-                        }.background(Color(.black).cornerRadius(10))
-                    }.padding(10)
+                            })
+                            .buttonStyle(.borderedProminent)
+                            .cornerRadius(10)
+                            .padding(10)
+                        }
+                        .background(Color(.black).cornerRadius(10))
+                    }
+                    .padding(10)
                 }
-                .onAppear(perform: {
-                    preventSleep()
-                    logManager.setSubjectId(subjectId: subjectId)
-                    logManager.setStartTime(startTime: startTime)
-                    logManager.setMode(mode: "map")
-                })
-                .onDisappear(perform: {
-                    logManager.stopUpdates()
-                })
+        }
+        .onAppear {
+            preventSleep()
+            logManager.setSubjectId(subjectId: subjectId)
+            logManager.setStartTime(startTime: startTime)
+            logManager.setMode(mode: "map")
+        }
+        .onDisappear {
+            logManager.stopUpdates()
         }
     }
 }
@@ -87,6 +96,11 @@ func preventSleep() {
 
 struct MapView_Previews: PreviewProvider {
     static var previews: some View {
-        RoutingView(subjectId: .constant("test"), subjectSet: .constant(true), currentAnnouncement: RouteAnnouncement(action: "left", location: CLLocation(), updateMap: false))
+        RoutingView(
+            subjectId: .constant("test"),
+            subjectSet: .constant(true),
+            currentAnnouncement: RouteAnnouncement(action: "left", location: CLLocation(), updateMap: false)
+        )
     }
 }
+
