@@ -1,3 +1,7 @@
+//  LogManager.swift
+//  QuantiBike
+//  Handles logging for both left and right foot FSR sensors
+
 import Foundation
 import CoreMotion
 import UIKit
@@ -11,11 +15,15 @@ class LogManager: NSObject, ObservableObject {
     private var startTime: Date = Date()
     private var mode: String = "not_defined"
 
+    @Published var runtime = 0.0
+
+    var latitude: String { "\(LocationManager.shared.lastLocation?.coordinate.latitude ?? 0)" }
+    var longitude: String { "\(LocationManager.shared.lastLocation?.coordinate.longitude ?? 0)" }
+    var userAltitude: String { "\(LocationManager.shared.lastLocation?.altitude ?? 0)" }
+
     override init() {
         super.init()
-        if !UIDevice.current.isBatteryMonitoringEnabled {
-            UIDevice.current.isBatteryMonitoringEnabled = true
-        }
+        UIDevice.current.isBatteryMonitoringEnabled = true
         if motionManager.isAccelerometerAvailable {
             motionManager.startDeviceMotionUpdates(using: .xArbitraryZVertical)
             motionManager.startGyroUpdates()
@@ -26,14 +34,20 @@ class LogManager: NSObject, ObservableObject {
         }
     }
 
-    func triggerUpdate(runtime: TimeInterval, leftFoot: FSRFootData, rightFoot: FSRFootData, calibrationStatus: String) {
+    private func dateAsString(date: Date) -> String {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd HHmmss"
+        return dateFormatter.string(from: date)
+    }
+
+    func triggerUpdate(runtime: TimeInterval, left: FootSensorData, right: FootSensorData, calibrationStatus: String) {
         csvData.append(LogItem(
             timestamp: runtime,
             phoneAcceleration: motionManager.accelerometerData,
             phoneMotionData: motionManager.deviceMotion,
             phoneBattery: UIDevice.current.batteryLevel,
-            leftFoot: leftFoot,
-            rightFoot: rightFoot,
+            leftFoot: left,
+            rightFoot: right,
             calibrationStatus: calibrationStatus,
             locationData: LocationManager.shared.lastLocation
         ))
@@ -47,47 +61,52 @@ class LogManager: NSObject, ObservableObject {
     }
 
     func setSubjectId(subjectId: String) { self.subjectId = subjectId }
-    func setStartTime(startTime: Date) { self.startTime = startTime }
     func setMode(mode: String) { self.mode = mode }
+    func setStartTime(startTime: Date) { self.startTime = startTime }
 
-    func getLongitude() -> String { "\(LocationManager.shared.lastLocation?.coordinate.longitude ?? 0)" }
-    func getLatitude() -> String { "\(LocationManager.shared.lastLocation?.coordinate.latitude ?? 0)" }
-    func getAltitude() -> String { "\(LocationManager.shared.lastLocation?.altitude ?? 0)" }
+    func getLongitude() -> String { longitude }
+    func getLatitude() -> String { latitude }
+    func getAltitude() -> String { userAltitude }
+
+    func getSingleInfos() -> String {
+        var infos = "{\"infos\":{"
+        infos.append("\"subject\":\"\(subjectId)\",")
+        infos.append("\"mode\":\"\(mode)\",")
+        infos.append("\"starttime\":\"\(dateAsString(date: startTime))\"")
+        infos.append("},")
+        return infos
+    }
 
     func saveCSV() {
+        let fileManager = FileManager.default
         do {
-            let path = try FileManager.default.url(for: .documentDirectory, in: .allDomainsMask, appropriateFor: nil, create: false)
-            let fileUrl = path.appendingPathComponent("\(dateAsString(date: startTime))-logfile-subject-\(subjectId).json")
+            let path = try fileManager.url(for: .documentDirectory, in: .allDomainsMask, appropriateFor: nil, create: false)
+            let fileUrl = path.appendingPathComponent("\(dateAsString(date: startTime))-logfile-subject-\(self.subjectId).json")
 
-            if FileManager.default.fileExists(atPath: fileUrl.path) {
-                let fileHandle = try FileHandle(forWritingTo: fileUrl)
-                fileHandle.seekToEndOfFile()
-                for log in csvData {
-                    fileHandle.write(",".data(using: .utf8)!)
-                    fileHandle.write(log.json.data(using: .utf8)!)
-                }
-                fileHandle.write("]}".data(using: .utf8)!)
-                fileHandle.closeFile()
-            } else {
-                var header = "{\"infos\":{\"subject\":\"\(subjectId)\",\"mode\":\"\(mode)\",\"starttime\":\"\(dateAsString(date: startTime))\"},\"timestamps\":["
-                header += csvData.first?.json ?? "{}"
-                try header.write(to: fileUrl, atomically: true, encoding: .utf8)
-                if csvData.count == 1 {
-                    let fileHandle = try FileHandle(forWritingTo: fileUrl)
-                    fileHandle.write("]}".data(using: .utf8)!)
-                    fileHandle.closeFile()
+            for (index, element) in csvData.enumerated() {
+                if let fileUpdate = try? FileHandle(forUpdating: fileUrl) {
+                    if index != csvData.endIndex {
+                        fileUpdate.seekToEndOfFile()
+                        try fileUpdate.write(contentsOf: ",".data(using: .utf8)!)
+                    }
+                    fileUpdate.seekToEndOfFile()
+                    try fileUpdate.write(contentsOf: element.json.data(using: .utf8)!)
+                    fileUpdate.closeFile()
+                } else {
+                    var firstJson = getSingleInfos()
+                    firstJson.append("\"timestamps\":[" + element.json)
+                    try firstJson.write(to: fileUrl, atomically: true, encoding: .utf8)
                 }
             }
 
-            print("✅ Log file saved.")
-        } catch {
-            print("❌ Failed to save: \(error)")
-        }
-    }
+            if let fileUpdate = try? FileHandle(forUpdating: fileUrl) {
+                fileUpdate.seekToEndOfFile()
+                try fileUpdate.write(contentsOf: "]}".data(using: .utf8)!)
+            }
 
-    private func dateAsString(date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd HHmmss"
-        return formatter.string(from: date)
+            print("✅ CSV created!")
+        } catch {
+            print("❌ Error while creating log: \(error.localizedDescription)")
+        }
     }
 }
