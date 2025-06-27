@@ -1,8 +1,3 @@
-//  DebugView.swift
-//  QuantiBike
-//
-//  Updated to reflect new 4-FSR sensor structure
-
 import SwiftUI
 import CoreLocation
 
@@ -17,88 +12,96 @@ struct DebugView: View {
     @State var runtime = 0.0
 
     var body: some View {
-        HStack{
-            VStack{
-                HStack{
+        HStack {
+            VStack {
+                HStack {
                     Image(systemName: "bicycle")
                     Text("QuantiBike").font(.largeTitle)
                 }
                 Spacer()
-                HStack{
+                HStack {
                     Image(systemName: "person.circle")
                     Text("Subject ID " + subjectId).font(.subheadline)
                 }
-                List{
-                    HStack{
+
+                List {
+                    HStack {
                         Image(systemName: "clock")
                         Text(stringFromTime(interval: runtime)).onReceive(timer) { _ in
                             runtime = Date().timeIntervalSinceReferenceDate - startTime.timeIntervalSinceReferenceDate
-                            let fsr1: Int = logItemServer.latestFSR1
-                            let fsr2: Int = logItemServer.latestFSR2
-                            let fsr3: Int = logItemServer.latestFSR3
-                            let fsr4: Int = logItemServer.latestFSR4
-                            logManager.triggerUpdate(runtime: runtime, fsr1: fsr1, fsr2: fsr2, fsr3: fsr3, fsr4: fsr4)
+                            logManager.triggerUpdate(
+                                runtime: runtime,
+                                fsr1: logItemServer.latestFSR1,
+                                fsr2: logItemServer.latestFSR2,
+                                fsr3: logItemServer.latestFSR3,
+                                fsr4: logItemServer.latestFSR4
+                            )
                         }.font(.subheadline)
                     }
-                    HStack{
-    Image(systemName: "1.circle")
-    Text("FSR1: \(logItemServer.latestFSR1)").font(.subheadline)
-}
-                    HStack{
-    Image(systemName: "2.circle")
-    Text("FSR2: \(logItemServer.latestFSR2)").font(.subheadline)
-}
-                    HStack{
-    Image(systemName: "3.circle")
-    Text("FSR3: \(logItemServer.latestFSR3)").font(.subheadline)
-}
-                    HStack{
-    Image(systemName: "4.circle")
-    Text("FSR4: \(logItemServer.latestFSR4)").font(.subheadline)
-}
-                   
-                    HStack{
+
+                    HStack {
+                        Image(systemName: "flag")
+                        Text("Status: \(logItemServer.latestStatus)").font(.subheadline).foregroundColor(.blue)
+                    }
+
+                    HStack {
+                        Image(systemName: "1.circle")
+                        Text("FSR1: \(logItemServer.latestFSR1)").font(.subheadline)
+                    }
+                    HStack {
+                        Image(systemName: "2.circle")
+                        Text("FSR2: \(logItemServer.latestFSR2)").font(.subheadline)
+                    }
+                    HStack {
+                        Image(systemName: "3.circle")
+                        Text("FSR3: \(logItemServer.latestFSR3)").font(.subheadline)
+                    }
+                    HStack {
+                        Image(systemName: "4.circle")
+                        Text("FSR4: \(logItemServer.latestFSR4)").font(.subheadline)
+                    }
+
+                    HStack {
                         Image(systemName: "iphone")
-                        if logManager.motionManager.deviceMotion != nil{
+                        if logManager.motionManager.deviceMotion != nil {
                             Text("\(logManager.motionManager.deviceMotion!)").font(.subheadline)
-                        }else{
+                        } else {
                             Text("No Gyro Data present").font(.subheadline)
                         }
                     }
-                    HStack{
+
+                    HStack {
                         Image(systemName: "speedometer")
-                        if logManager.motionManager.accelerometerData != nil{
+                        if logManager.motionManager.accelerometerData != nil {
                             Text("\(logManager.motionManager.accelerometerData!)").font(.subheadline)
-                        }else{
+                        } else {
                             Text("No Acc Data present").font(.subheadline)
                         }
                     }
-                    HStack{
+
+                    HStack {
                         Image(systemName: "safari")
                         Text("Longitude: \(logManager.getLongitude()), Latitude: \(logManager.getLatitude()), Altitude: \(logManager.getAltitude())").font(.subheadline)
                     }
                 }
+
                 Spacer()
-                Button("Save CSV",role:.destructive,action:{
+
+                Button("Save CSV", role: .destructive) {
                     logManager.saveCSV()
                     debug = false
-                }).buttonStyle(.borderedProminent)
+                }
+                .buttonStyle(.borderedProminent)
             }
-        }.onAppear(perform: {
+        }
+        .onAppear {
             preventSleep()
             logManager.setSubjectId(subjectId: subjectId)
             logManager.setMode(mode: "debug")
             logManager.setStartTime(startTime: startTime)
-        }).onDisappear(perform: {
+        }
+        .onDisappear {
             logManager.stopUpdates()
-        })
-    }
-
-    func logHack(val:Any,label:String?){
-        if label != nil{
-            var _ = print("\(label!): \(val)")
-        }else{
-            var _ = print(val)
         }
     }
 
@@ -109,12 +112,9 @@ struct DebugView: View {
         return formatter.string(from: interval)! + ".\(ms)"
     }
 
-    func preventSleep(){
-        if(UIApplication.shared.isIdleTimerDisabled == false){
+    func preventSleep() {
+        if !UIApplication.shared.isIdleTimerDisabled {
             UIApplication.shared.isIdleTimerDisabled = true
         }
     }
-
-
-
 }
