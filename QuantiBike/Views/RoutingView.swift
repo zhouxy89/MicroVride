@@ -49,18 +49,20 @@ struct RoutingView: View {
                                     .foregroundColor(Color(.systemRed)).padding(10)
                             }
 
-                            HStack {
-                                Text("\(String(format: "%03d", Int(runtime)))")
-                                    .onReceive(timer) { _ in
-                                        runtime = Date().timeIntervalSinceReferenceDate - startTime.timeIntervalSinceReferenceDate
+                            VStack(alignment: .leading) {
+                                Text("Time: \(String(format: "%03d", Int(runtime)))")
+                                Text("Left Status: \(logItemServer.leftStatusMessage)")
+                                Text("Right Status: \(logItemServer.rightStatusMessage)")
+                            }
+                            .onReceive(timer) { _ in
+                                runtime = Date().timeIntervalSinceReferenceDate - startTime.timeIntervalSinceReferenceDate
 
-                                        logManager.triggerUpdate(
-                                            runtime: runtime,
-                                            left: logItemServer.leftFoot,
-                                            right: logItemServer.rightFoot,
-                                            calibrationStatus: logItemServer.statusMessage
-                                        )
-                                    }
+                                logManager.triggerUpdate(
+                                    runtime: runtime,
+                                    left: logItemServer.leftFoot,
+                                    right: logItemServer.rightFoot,
+                                    calibrationStatus: "Left: \(logItemServer.leftStatusMessage); Right: \(logItemServer.rightStatusMessage)"
+                                )
                             }
 
                             Button("Finish", role: .destructive, action: {
@@ -103,4 +105,3 @@ struct MapView_Previews: PreviewProvider {
         )
     }
 }
-
