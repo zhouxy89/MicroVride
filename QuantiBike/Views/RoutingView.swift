@@ -49,20 +49,19 @@ struct RoutingView: View {
                                     .foregroundColor(Color(.systemRed)).padding(10)
                             }
 
-                            VStack(alignment: .leading) {
-                                Text("Time: \(String(format: "%03d", Int(runtime)))")
-                                Text("Left Status: \(logItemServer.leftStatusMessage)")
-                                Text("Right Status: \(logItemServer.rightStatusMessage)")
-                            }
-                            .onReceive(timer) { _ in
-                                runtime = Date().timeIntervalSinceReferenceDate - startTime.timeIntervalSinceReferenceDate
+                            HStack {
+                                Text("\(String(format: "%03d", Int(runtime)))")
+                                    .onReceive(timer) { _ in
+                                        runtime = Date().timeIntervalSinceReferenceDate - startTime.timeIntervalSinceReferenceDate
 
-                                logManager.triggerUpdate(
-                                    runtime: runtime,
-                                    left: logItemServer.leftFoot,
-                                    right: logItemServer.rightFoot,
-                                    calibrationStatus: "Left: \(logItemServer.leftStatusMessage); Right: \(logItemServer.rightStatusMessage)"
-                                )
+                                        logManager.triggerUpdate(
+                                            runtime: runtime,
+                                            left: logItemServer.leftFoot,
+                                            right: logItemServer.rightFoot,
+                                            leftCalibrationStatus: logItemServer.leftStatusMessage,
+                                            rightCalibrationStatus: logItemServer.rightStatusMessage
+                                        )
+                                    }
                             }
 
                             Button("Finish", role: .destructive, action: {
@@ -96,12 +95,3 @@ func preventSleep() {
     }
 }
 
-struct MapView_Previews: PreviewProvider {
-    static var previews: some View {
-        RoutingView(
-            subjectId: .constant("test"),
-            subjectSet: .constant(true),
-            currentAnnouncement: RouteAnnouncement(action: "left", location: CLLocation(), updateMap: false)
-        )
-    }
-}
