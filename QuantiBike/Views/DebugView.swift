@@ -1,6 +1,6 @@
 //  DebugView.swift
 //  QuantiBike
-//  Updated to support dual foot sensor data and calibration status display
+//  Updated to handle both left and right foot FSR data and calibration with anatomical labels
 
 import SwiftUI
 import CoreLocation
@@ -30,48 +30,74 @@ struct DebugView: View {
                 List {
                     HStack {
                         Image(systemName: "clock")
-                        Text(stringFromTime(interval: runtime)).onReceive(timer) { _ in
-                            runtime = Date().timeIntervalSinceReferenceDate - startTime.timeIntervalSinceReferenceDate
-                            logManager.triggerUpdate(
-                                runtime: runtime,
-                                left: logItemServer.leftFoot,
-                                right: logItemServer.rightFoot,
-                                calibrationStatus: "Left: \(logItemServer.leftStatusMessage); Right: \(logItemServer.rightStatusMessage)"
-                            )
-                        }
+                        Text(stringFromTime(interval: runtime))
+                            .onReceive(timer) { _ in
+                                runtime = Date().timeIntervalSinceReferenceDate - startTime.timeIntervalSinceReferenceDate
+                                logManager.triggerUpdate(
+                                    runtime: runtime,
+                                    left: logItemServer.leftFoot,
+                                    right: logItemServer.rightFoot,
+                                    leftCalibrationStatus: logItemServer.leftStatusMessage,
+                                    rightCalibrationStatus: logItemServer.rightStatusMessage
+                                )
+                            }
+                            .font(.subheadline)
                     }
-                    HStack {
-                        Image(systemName: "bolt")
-                        Text("Left: \(logItemServer.leftStatusMessage)").font(.subheadline)
-                    }
+
                     HStack {
                         Image(systemName: "bolt.fill")
-                        Text("Right: \(logItemServer.rightStatusMessage)").font(.subheadline)
+                        VStack(alignment: .leading) {
+                            Text("Left Status: \(logItemServer.leftStatusMessage)")
+                            Text("Right Status: \(logItemServer.rightStatusMessage)")
+                        }.font(.subheadline)
                     }
 
                     Group {
-                        Text("📍 Left Foot").bold()
-                        Text("FSR1: \(logItemServer.leftFoot.fsr1), Raw: \(logItemServer.leftFoot.fsr1_raw), Norm: \(logItemServer.leftFoot.fsr1_norm)")
-                        Text("FSR2: \(logItemServer.leftFoot.fsr2), Raw: \(logItemServer.leftFoot.fsr2_raw), Norm: \(logItemServer.leftFoot.fsr2_norm)")
-                        Text("FSR3: \(logItemServer.leftFoot.fsr3), Raw: \(logItemServer.leftFoot.fsr3_raw), Norm: \(logItemServer.leftFoot.fsr3_norm)")
-                        Text("FSR4: \(logItemServer.leftFoot.fsr4), Raw: \(logItemServer.leftFoot.fsr4_raw), Norm: \(logItemServer.leftFoot.fsr4_norm)")
+                        Section(header: Text("Left Foot (D32–D35)").font(.headline)) {
+                            HStack { Text("Mid Left (D32): \(logItemServer.leftFoot.midLeft)") }
+                            HStack { Text("Mid Right (D33): \(logItemServer.leftFoot.midRight)") }
+                            HStack { Text("Heel (D34): \(logItemServer.leftFoot.heel)") }
+                            HStack { Text("Toe (D35): \(logItemServer.leftFoot.toe)") }
+                        }
+
+                        Section(header: Text("Right Foot (D32–D35)").font(.headline)) {
+                            HStack { Text("Mid Left (D32): \(logItemServer.rightFoot.midLeft)") }
+                            HStack { Text("Mid Right (D33): \(logItemServer.rightFoot.midRight)") }
+                            HStack { Text("Heel (D34): \(logItemServer.rightFoot.heel)") }
+                            HStack { Text("Toe (D35): \(logItemServer.rightFoot.toe)") }
+                        }
+                    }.font(.subheadline)
+
+                    HStack {
+                        Image(systemName: "iphone")
+                        if let motion = logManager.motionManager.deviceMotion {
+                            Text("\(motion)").font(.subheadline)
+                        } else {
+                            Text("No Gyro Data present").font(.subheadline)
+                        }
                     }
 
-                    Group {
-                        Text("📍 Right Foot").bold()
-                        Text("FSR1: \(logItemServer.rightFoot.fsr1), Raw: \(logItemServer.rightFoot.fsr1_raw), Norm: \(logItemServer.rightFoot.fsr1_norm)")
-                        Text("FSR2: \(logItemServer.rightFoot.fsr2), Raw: \(logItemServer.rightFoot.fsr2_raw), Norm: \(logItemServer.rightFoot.fsr2_norm)")
-                        Text("FSR3: \(logItemServer.rightFoot.fsr3), Raw: \(logItemServer.rightFoot.fsr3_raw), Norm: \(logItemServer.rightFoot.fsr3_norm)")
-                        Text("FSR4: \(logItemServer.rightFoot.fsr4), Raw: \(logItemServer.rightFoot.fsr4_raw), Norm: \(logItemServer.rightFoot.fsr4_norm)")
+                    HStack {
+                        Image(systemName: "speedometer")
+                        if let accel = logManager.motionManager.accelerometerData {
+                            Text("\(accel)").font(.subheadline)
+                        } else {
+                            Text("No Acc Data present").font(.subheadline)
+                        }
+                    }
+
+                    HStack {
+                        Image(systemName: "safari")
+                        Text("Longitude: \(logManager.getLongitude()), Latitude: \(logManager.getLatitude()), Altitude: \(logManager.getAltitude())")
+                            .font(.subheadline)
                     }
                 }
+
                 Spacer()
-                Button("Save CSV", role: .destructive) {
+                Button("Save CSV", role: .destructive, action: {
                     logManager.saveCSV()
                     debug = false
-                }
-                .buttonStyle(.borderedProminent)
-                .padding(10)
+                }).buttonStyle(.borderedProminent)
             }
         }
         .onAppear {
@@ -89,10 +115,13 @@ struct DebugView: View {
         let ms = Int(interval.truncatingRemainder(dividingBy: 1) * 1000)
         let formatter = DateComponentsFormatter()
         formatter.allowedUnits = [.hour, .minute, .second]
-        return (formatter.string(from: interval) ?? "") + ".\(ms)"
+        return formatter.string(from: interval)! + ".\(ms)"
     }
 
     func preventSleep() {
-        UIApplication.shared.isIdleTimerDisabled = true
+        if !UIApplication.shared.isIdleTimerDisabled {
+            UIApplication.shared.isIdleTimerDisabled = true
+        }
     }
 }
+
