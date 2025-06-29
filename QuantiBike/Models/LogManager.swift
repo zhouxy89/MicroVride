@@ -1,6 +1,6 @@
 //  LogManager.swift
 //  QuantiBike
-//  Updated for dual-foot logging on 2025-06-27
+//  Handles logging for both left and right foot FSR sensors with anatomical labels
 
 import Foundation
 import CoreMotion
@@ -17,21 +17,13 @@ class LogManager: NSObject, ObservableObject {
 
     @Published var runtime = 0.0
 
-    var latitude: String {
-        return "\(LocationManager.shared.lastLocation?.coordinate.latitude ?? 0)"
-    }
-    var longitude: String {
-        return "\(LocationManager.shared.lastLocation?.coordinate.longitude ?? 0)"
-    }
-    var userAltitude: String {
-        return "\(LocationManager.shared.lastLocation?.altitude ?? 0)"
-    }
+    var latitude: String { "\(LocationManager.shared.lastLocation?.coordinate.latitude ?? 0)" }
+    var longitude: String { "\(LocationManager.shared.lastLocation?.coordinate.longitude ?? 0)" }
+    var userAltitude: String { "\(LocationManager.shared.lastLocation?.altitude ?? 0)" }
 
     override init() {
         super.init()
-        if !UIDevice.current.isBatteryMonitoringEnabled {
-            UIDevice.current.isBatteryMonitoringEnabled = true
-        }
+        UIDevice.current.isBatteryMonitoringEnabled = true
         if motionManager.isAccelerometerAvailable {
             motionManager.startDeviceMotionUpdates(using: .xArbitraryZVertical)
             motionManager.startGyroUpdates()
@@ -48,18 +40,22 @@ class LogManager: NSObject, ObservableObject {
         return dateFormatter.string(from: date)
     }
 
-    func triggerUpdate(runtime: TimeInterval, left: FootSensorData, right: FootSensorData, calibrationStatus: String) {
-        let logItem = LogItem(
+    func triggerUpdate(runtime: TimeInterval,
+                       left: FootSensorData,
+                       right: FootSensorData,
+                       leftCalibrationStatus: String,
+                       rightCalibrationStatus: String) {
+        csvData.append(LogItem(
             timestamp: runtime,
-            phoneBattery: UIDevice.current.batteryLevel,
-            left: left,
-            right: right,
-            calibrationStatus: calibrationStatus,
             phoneAcceleration: motionManager.accelerometerData,
             phoneMotionData: motionManager.deviceMotion,
+            phoneBattery: UIDevice.current.batteryLevel,
+            leftFoot: left,
+            rightFoot: right,
+            leftCalibrationStatus: leftCalibrationStatus,
+            rightCalibrationStatus: rightCalibrationStatus,
             locationData: LocationManager.shared.lastLocation
-        )
-        csvData.append(logItem)
+        ))
     }
 
     func stopUpdates() {
@@ -80,6 +76,10 @@ class LogManager: NSObject, ObservableObject {
     func setStartTime(startTime: Date) {
         self.startTime = startTime
     }
+
+    func getLongitude() -> String { longitude }
+    func getLatitude() -> String { latitude }
+    func getAltitude() -> String { userAltitude }
 
     func getSingleInfos() -> String {
         var infos = "{\"infos\":{"
@@ -117,9 +117,10 @@ class LogManager: NSObject, ObservableObject {
                 try fileUpdate.write(contentsOf: "]}".data(using: .utf8)!)
             }
 
-            print("csv created!")
+            print("✅ CSV created!")
         } catch {
-            print("❌ error while creating log: \(error.localizedDescription)")
+            print("❌ Error while creating log: \(error.localizedDescription)")
         }
     }
 }
+
