@@ -1,32 +1,14 @@
-//  LogItemServer.swift
-//  QuantiBike
-//  Handles dual-foot sensor inputs from two ESP32 boards
-
 import Foundation
 import Network
 
 struct FootSensorData {
-    var fsr1: Int = 0
-    var fsr2: Int = 0
-    var fsr3: Int = 0
-    var fsr4: Int = 0
-    var fsr1_raw: Int = 0
-    var fsr2_raw: Int = 0
-    var fsr3_raw: Int = 0
-    var fsr4_raw: Int = 0
-    var fsr1_baseline: Int = 0
-    var fsr2_baseline: Int = 0
-    var fsr3_baseline: Int = 0
-    var fsr4_baseline: Int = 0
-    var fsr1_max: Int = 1
-    var fsr2_max: Int = 1
-    var fsr3_max: Int = 1
-    var fsr4_max: Int = 1
-    var fsr1_norm: Float = 0
-    var fsr2_norm: Float = 0
-    var fsr3_norm: Float = 0
-    var fsr4_norm: Float = 0
+    var heel: Int = 0, toe: Int = 0, midLeft: Int = 0, midRight: Int = 0
+    var heel_raw: Int = 0, toe_raw: Int = 0, midLeft_raw: Int = 0, midRight_raw: Int = 0
+    var heel_baseline: Int = 0, toe_baseline: Int = 0, midLeft_baseline: Int = 0, midRight_baseline: Int = 0
+    var heel_max: Int = 1, toe_max: Int = 1, midLeft_max: Int = 1, midRight_max: Int = 1
+    var heel_norm: Float = 0.0, toe_norm: Float = 0.0, midLeft_norm: Float = 0.0, midRight_norm: Float = 0.0
 }
+
 
 class LogItemServer: ObservableObject {
     @Published var leftFoot = FootSensorData()
@@ -34,118 +16,113 @@ class LogItemServer: ObservableObject {
     @Published var leftStatusMessage: String = ""
     @Published var rightStatusMessage: String = ""
 
-    private var listener: NWListener!
-    private var connections: [UUID: NWConnection] = [:]
+    private var listener: NWListener
+    private var connections: [NWConnection] = []
 
-    init(port: UInt16 = 12345) {
-        do {
-            listener = try NWListener(using: .tcp, on: NWEndpoint.Port(rawValue: port)!)
-        } catch {
-            print("Failed to create TCP listener: \(error)")
-        }
+    init(port: NWEndpoint.Port) throws {
+        listener = try NWListener(using: .tcp, on: port)
     }
 
     func start() {
+        listener.stateUpdateHandler = { state in
+            if case .ready = state {
+                print("Server ready")
+            }
+        }
         listener.newConnectionHandler = { [weak self] connection in
             self?.handleNewConnection(connection)
         }
         listener.start(queue: .main)
-        print("✅ LogItemServer started on port \(listener.port?.rawValue ?? 0)")
-    }
-
-    func stop() {
-        listener.cancel()
-        for conn in connections.values {
-            conn.cancel()
-        }
-        connections.removeAll()
     }
 
     private func handleNewConnection(_ connection: NWConnection) {
-        let id = UUID()
-        connections[id] = connection
         connection.start(queue: .main)
+        connections.append(connection)
+        receive(on: connection)
+    }
 
-        connection.receive(minimumIncompleteLength: 1, maximumLength: 4096) { [weak self] data, _, isComplete, error in
-            if let data = data, !data.isEmpty {
-                self?.processData(data)
+    private func receive(on connection: NWConnection) {
+        connection.receive(minimumIncompleteLength: 1, maximumLength: 4096) { [weak self] data, _, isComplete, _ in
+            guard let self = self else { return }
+            if let data = data, let string = String(data: data, encoding: .utf8) {
+                self.handleMessage(string)
             }
-
-            if isComplete || error != nil {
+            if isComplete {
                 connection.cancel()
-                self?.connections.removeValue(forKey: id)
+                self.connections.removeAll { $0 === connection }
             } else {
-                self?.handleNewConnection(connection)
+                self.receive(on: connection)
             }
         }
     }
 
-    private func processData(_ data: Data) {
-        guard let message = String(data: data, encoding: .utf8) else { return }
+    private func handleMessage(_ msg: String) {
+        let pairs = msg.split(separator: "&").map { $0.split(separator: "=").map(String.init) }
 
-        let components = message.split(separator: "&").map { $0.split(separator: "=") }.compactMap {
-            $0.count == 2 ? (String($0[0]), String($0[1])) : nil
-        }
+        let isRight = msg.contains("board=right")
 
-        var board: String = "left" // default board
-        var tempData = FootSensorData()
-
-        for (key, value) in components {
-            if key == "board" {
-                board = value.lowercased()
-                continue
+        DispatchQueue.main.async {
+            if isRight {
+                self.updateSensorData(target: &self.rightFoot, with: pairs, isRightFoot: true)
+            } else {
+                self.updateSensorData(target: &self.leftFoot, with: pairs, isRightFoot: false)
             }
+        }
+    }
+
+    private func updateSensorData(target: inout FootSensorData, with pairs: [[String]], isRightFoot: Bool) {
+        for pair in pairs where pair.count == 2 {
+            let key = pair[0], value = pair[1]
 
             if key == "status" {
-                DispatchQueue.main.async {
-                    if board == "left" {
-                        self.leftStatusMessage = value
-                    } else {
-                        self.rightStatusMessage = value
-                    }
+                if isRightFoot {
+                    self.rightStatusMessage = value
+                } else {
+                    self.leftStatusMessage = value
                 }
                 continue
             }
 
             if let intVal = Int(value) {
                 switch key {
-                case "fsr1": tempData.fsr1 = intVal
-                case "fsr2": tempData.fsr2 = intVal
-                case "fsr3": tempData.fsr3 = intVal
-                case "fsr4": tempData.fsr4 = intVal
-                case "fsr1_raw": tempData.fsr1_raw = intVal
-                case "fsr2_raw": tempData.fsr2_raw = intVal
-                case "fsr3_raw": tempData.fsr3_raw = intVal
-                case "fsr4_raw": tempData.fsr4_raw = intVal
-                case "fsr1_baseline": tempData.fsr1_baseline = intVal
-                case "fsr2_baseline": tempData.fsr2_baseline = intVal
-                case "fsr3_baseline": tempData.fsr3_baseline = intVal
-                case "fsr4_baseline": tempData.fsr4_baseline = intVal
-                case "fsr1_max": tempData.fsr1_max = max(intVal, 1)
-                case "fsr2_max": tempData.fsr2_max = max(intVal, 1)
-                case "fsr3_max": tempData.fsr3_max = max(intVal, 1)
-                case "fsr4_max": tempData.fsr4_max = max(intVal, 1)
-                default: break
+                    case "left_heel", "right_heel": target.heel = intVal
+                    case "left_toe", "right_toe": target.toe = intVal
+                    case "left_mid_l", "right_mid_l": target.midLeft = intVal
+                    case "left_mid_r", "right_mid_r": target.midRight = intVal
+
+                    case "left_heel_raw", "right_heel_raw": target.heel_raw = intVal
+                    case "left_toe_raw", "right_toe_raw": target.toe_raw = intVal
+                    case "left_mid_l_raw", "right_mid_l_raw": target.midLeft_raw = intVal
+                    case "left_mid_r_raw", "right_mid_r_raw": target.midRight_raw = intVal
+
+                    case "left_heel_baseline", "right_heel_baseline": target.heel_baseline = intVal
+                    case "left_toe_baseline", "right_toe_baseline": target.toe_baseline = intVal
+                    case "left_mid_l_baseline", "right_mid_l_baseline": target.midLeft_baseline = intVal
+                    case "left_mid_r_baseline", "right_mid_r_baseline": target.midRight_baseline = intVal
+
+                    case "left_heel_max", "right_heel_max": target.heel_max = max(intVal, 1)
+                    case "left_toe_max", "right_toe_max": target.toe_max = max(intVal, 1)
+                    case "left_mid_l_max", "right_mid_l_max": target.midLeft_max = max(intVal, 1)
+                    case "left_mid_r_max", "right_mid_r_max": target.midRight_max = max(intVal, 1)
+                    default: break
                 }
             }
 
             if let floatVal = Float(value) {
                 switch key {
-                case "fsr1_norm": tempData.fsr1_norm = floatVal
-                case "fsr2_norm": tempData.fsr2_norm = floatVal
-                case "fsr3_norm": tempData.fsr3_norm = floatVal
-                case "fsr4_norm": tempData.fsr4_norm = floatVal
-                default: break
+                    case "left_heel_norm", "right_heel_norm": target.heel_norm = floatVal
+                    case "left_toe_norm", "right_toe_norm": target.toe_norm = floatVal
+                    case "left_mid_l_norm", "right_mid_l_norm": target.midLeft_norm = floatVal
+                    case "left_mid_r_norm", "right_mid_r_norm": target.midRight_norm = floatVal
+                    default: break
                 }
             }
         }
+    }
 
-        DispatchQueue.main.async {
-            if board == "left" {
-                self.leftFoot = tempData
-            } else if board == "right" {
-                self.rightFoot = tempData
-            }
-        }
+    func stop() {
+        listener.cancel()
+        connections.forEach { $0.cancel() }
+        connections.removeAll()
     }
 }
