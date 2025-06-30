@@ -14,6 +14,8 @@ class LogManager: NSObject, ObservableObject {
     private var subjectId: String = ""
     private var startTime: Date = Date()
     private var mode: String = "not_defined"
+    private var lastLoggedTime: TimeInterval = 0
+
 
     @Published var runtime = 0.0
 
@@ -41,22 +43,28 @@ class LogManager: NSObject, ObservableObject {
     }
 
     func triggerUpdate(runtime: TimeInterval,
-                       left: FootSensorData,
-                       right: FootSensorData,
-                       leftCalibrationStatus: String,
-                       rightCalibrationStatus: String) {
-        csvData.append(LogItem(
-            timestamp: runtime,
-            phoneAcceleration: motionManager.accelerometerData,
-            phoneMotionData: motionManager.deviceMotion,
-            phoneBattery: UIDevice.current.batteryLevel,
-            leftFoot: left,
-            rightFoot: right,
-            leftCalibrationStatus: leftCalibrationStatus,
-            rightCalibrationStatus: rightCalibrationStatus,
-            locationData: LocationManager.shared.lastLocation
-        ))
+                   left: FootSensorData,
+                   right: FootSensorData,
+                   leftCalibrationStatus: String,
+                   rightCalibrationStatus: String) {
+    // Throttle updates: only log if 0.5 seconds have passed
+    if runtime - lastLoggedTime < 0.5 {
+        return
     }
+    lastLoggedTime = runtime
+
+    csvData.append(LogItem(
+        timestamp: runtime,
+        phoneAcceleration: motionManager.accelerometerData,
+        phoneMotionData: motionManager.deviceMotion,
+        phoneBattery: UIDevice.current.batteryLevel,
+        leftFoot: left,
+        rightFoot: right,
+        leftCalibrationStatus: leftCalibrationStatus,
+        rightCalibrationStatus: rightCalibrationStatus,
+        locationData: LocationManager.shared.lastLocation
+    ))
+}
 
     func stopUpdates() {
         motionManager.stopGyroUpdates()
