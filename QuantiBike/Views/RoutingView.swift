@@ -1,6 +1,6 @@
 //  RoutingView.swift
 //  QuantiBike
-//  Updated to handle dual foot data logging and calibration
+//  Updated to handle dual foot data logging and calibration using a background-safe timer
 
 import MapKit
 import SwiftUI
@@ -13,7 +13,6 @@ struct RoutingView: View {
     @Binding var subjectSet: Bool
     @State var currentAnnouncement: RouteAnnouncement?
 
-    var timer = Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()
     var startTime: Date = Date()
     @State var runtime: Float64 = 0.0
 
@@ -22,58 +21,41 @@ struct RoutingView: View {
             MapView(announcement: $currentAnnouncement)
                 .ignoresSafeArea(.all)
                 .overlay(alignment: .topLeading) {
-                    HStack(alignment: .top) {
-                        if let announcement = currentAnnouncement {
-                            VStack {
-                                HStack {
-                                    Image(systemName: announcement.getIcon())
-                                        .fontWeight(.bold)
-                                        .font(.custom("Arrow", size: 65, relativeTo: .largeTitle))
-                                    Text("\(announcement.distance)m").font(.title).fontWeight(.bold)
-                                }.padding(10)
-                                Text(announcement.getText()).font(.headline).padding(10)
-                            }
-                            .background(Color(.black).cornerRadius(10))
-                        }
-                    }
-                    .padding(10)
-                }
-                .overlay(alignment: .bottomTrailing) {
-                    HStack(alignment: .bottom) {
-                        VStack {
-                            if logManager.headPhoneMotionManager.deviceMotion != nil {
-                                Image(systemName: "airpodspro")
-                                    .foregroundColor(Color(.systemGreen)).padding(10)
-                            } else {
-                                Image(systemName: "airpodspro")
-                                    .foregroundColor(Color(.systemRed)).padding(10)
-                            }
-
+                    if let announcement = currentAnnouncement {
+                        VStack(alignment: .leading) {
                             HStack {
-                                Text("\(String(format: "%03d", Int(runtime)))")
-                                    .onReceive(timer) { _ in
-                                        runtime = Date().timeIntervalSinceReferenceDate - startTime.timeIntervalSinceReferenceDate
-
-                                        logManager.triggerUpdate(
-                                            runtime: runtime,
-                                            left: logItemServer.leftFoot,
-                                            right: logItemServer.rightFoot,
-                                            leftCalibrationStatus: logItemServer.leftStatusMessage,
-                                            rightCalibrationStatus: logItemServer.rightStatusMessage
-                                        )
-                                    }
-                            }
-
-                            Button("Finish", role: .destructive, action: {
-                                logManager.saveCSV()
-                                subjectSet = false
-                            })
-                            .buttonStyle(.borderedProminent)
-                            .cornerRadius(10)
-                            .padding(10)
+                                Image(systemName: announcement.getIcon())
+                                    .fontWeight(.bold)
+                                    .font(.custom("Arrow", size: 65, relativeTo: .largeTitle))
+                                Text("\(announcement.distance)m").font(.title).fontWeight(.bold)
+                            }.padding(10)
+                            Text(announcement.getText()).font(.headline).padding(10)
                         }
                         .background(Color(.black).cornerRadius(10))
+                        .padding(10)
                     }
+                }
+                .overlay(alignment: .bottomTrailing) {
+                    VStack {
+                        Image(systemName: "airpodspro")
+                            .foregroundColor(logManager.headPhoneMotionManager.deviceMotion != nil ? .green : .red)
+                            .padding(10)
+
+                        Text("\(String(format: "%03d", Int(runtime)))")
+                            .onReceive(Timer.publish(every: 1.0, on: .main, in: .common).autoconnect()) { _ in
+                                runtime = Date().timeIntervalSinceReferenceDate - startTime.timeIntervalSinceReferenceDate
+                            }
+
+                        Button("Finish", role: .destructive, action: {
+                            logManager.stopLoggingTimer()
+                            logManager.saveCSV()
+                            subjectSet = false
+                        })
+                        .buttonStyle(.borderedProminent)
+                        .cornerRadius(10)
+                        .padding(10)
+                    }
+                    .background(Color(.black).cornerRadius(10))
                     .padding(10)
                 }
         }
@@ -82,8 +64,11 @@ struct RoutingView: View {
             logManager.setSubjectId(subjectId: subjectId)
             logManager.setStartTime(startTime: startTime)
             logManager.setMode(mode: "map")
+            logManager.logItemServer = logItemServer
+            logManager.startLoggingTimer()
         }
         .onDisappear {
+            logManager.stopLoggingTimer()
             logManager.stopUpdates()
         }
     }
@@ -94,4 +79,3 @@ func preventSleep() {
         UIApplication.shared.isIdleTimerDisabled = true
     }
 }
-
