@@ -1,6 +1,6 @@
 //  DebugView.swift
 //  QuantiBike
-//  Updated to handle both left and right foot FSR data and calibration with anatomical labels
+//  Updated to use reliable logging timer with anatomical FSR display
 
 import SwiftUI
 import CoreLocation
@@ -11,7 +11,6 @@ struct DebugView: View {
     @StateObject var logManager = LogManager()
     @EnvironmentObject var logItemServer: LogItemServer
 
-    var timer = Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()
     var startTime = Date()
     @State var runtime = 0.0
 
@@ -31,15 +30,8 @@ struct DebugView: View {
                     HStack {
                         Image(systemName: "clock")
                         Text(stringFromTime(interval: runtime))
-                            .onReceive(timer) { _ in
+                            .onReceive(Timer.publish(every: 1.0, on: .main, in: .common).autoconnect()) { _ in
                                 runtime = Date().timeIntervalSinceReferenceDate - startTime.timeIntervalSinceReferenceDate
-                                logManager.triggerUpdate(
-                                    runtime: runtime,
-                                    left: logItemServer.leftFoot,
-                                    right: logItemServer.rightFoot,
-                                    leftCalibrationStatus: logItemServer.leftStatusMessage,
-                                    rightCalibrationStatus: logItemServer.rightStatusMessage
-                                )
                             }
                             .font(.subheadline)
                     }
@@ -95,6 +87,7 @@ struct DebugView: View {
 
                 Spacer()
                 Button("Save CSV", role: .destructive, action: {
+                    logManager.stopLoggingTimer()
                     logManager.saveCSV()
                     debug = false
                 }).buttonStyle(.borderedProminent)
@@ -105,8 +98,11 @@ struct DebugView: View {
             logManager.setSubjectId(subjectId: subjectId)
             logManager.setMode(mode: "debug")
             logManager.setStartTime(startTime: startTime)
+            logManager.logItemServer = logItemServer
+            logManager.startLoggingTimer()
         }
         .onDisappear {
+            logManager.stopLoggingTimer()
             logManager.stopUpdates()
         }
     }
@@ -124,4 +120,3 @@ struct DebugView: View {
         }
     }
 }
-
