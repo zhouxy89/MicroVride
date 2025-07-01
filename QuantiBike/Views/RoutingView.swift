@@ -1,6 +1,6 @@
 //  RoutingView.swift
 //  QuantiBike
-//  Updated to handle dual foot data logging and calibration using a background-safe timer
+//  Updated to ensure consistent logging using background timer
 
 import MapKit
 import SwiftUI
@@ -15,47 +15,55 @@ struct RoutingView: View {
 
     var startTime: Date = Date()
     @State var runtime: Float64 = 0.0
+    var timer = Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()
 
     var body: some View {
         VStack {
             MapView(announcement: $currentAnnouncement)
                 .ignoresSafeArea(.all)
                 .overlay(alignment: .topLeading) {
-                    if let announcement = currentAnnouncement {
-                        VStack(alignment: .leading) {
-                            HStack {
-                                Image(systemName: announcement.getIcon())
-                                    .fontWeight(.bold)
-                                    .font(.custom("Arrow", size: 65, relativeTo: .largeTitle))
-                                Text("\(announcement.distance)m").font(.title).fontWeight(.bold)
-                            }.padding(10)
-                            Text(announcement.getText()).font(.headline).padding(10)
+                    HStack(alignment: .top) {
+                        if let announcement = currentAnnouncement {
+                            VStack {
+                                HStack {
+                                    Image(systemName: announcement.getIcon())
+                                        .fontWeight(.bold)
+                                        .font(.custom("Arrow", size: 65, relativeTo: .largeTitle))
+                                    Text("\(announcement.distance)m").font(.title).fontWeight(.bold)
+                                }.padding(10)
+                                Text(announcement.getText()).font(.headline).padding(10)
+                            }
+                            .background(Color(.black).cornerRadius(10))
                         }
-                        .background(Color(.black).cornerRadius(10))
-                        .padding(10)
                     }
+                    .padding(10)
                 }
                 .overlay(alignment: .bottomTrailing) {
-                    VStack {
-                        Image(systemName: "airpodspro")
-                            .foregroundColor(logManager.headPhoneMotionManager.deviceMotion != nil ? .green : .red)
-                            .padding(10)
-
-                        Text("\(String(format: "%03d", Int(runtime)))")
-                            .onReceive(Timer.publish(every: 1.0, on: .main, in: .common).autoconnect()) { _ in
-                                runtime = Date().timeIntervalSinceReferenceDate - startTime.timeIntervalSinceReferenceDate
+                    HStack(alignment: .bottom) {
+                        VStack {
+                            if logManager.headPhoneMotionManager.deviceMotion != nil {
+                                Image(systemName: "airpodspro")
+                                    .foregroundColor(Color(.systemGreen)).padding(10)
+                            } else {
+                                Image(systemName: "airpodspro")
+                                    .foregroundColor(Color(.systemRed)).padding(10)
                             }
 
-                        Button("Finish", role: .destructive, action: {
-                            logManager.stopLoggingTimer()
-                            logManager.saveCSV()
-                            subjectSet = false
-                        })
-                        .buttonStyle(.borderedProminent)
-                        .cornerRadius(10)
-                        .padding(10)
+                            HStack {
+                                Text("\(String(format: "%03d", Int(runtime)))")
+                            }
+
+                            Button("Finish", role: .destructive, action: {
+                                logManager.stopBackgroundLogging()
+                                logManager.saveCSV()
+                                subjectSet = false
+                            })
+                            .buttonStyle(.borderedProminent)
+                            .cornerRadius(10)
+                            .padding(10)
+                        }
+                        .background(Color(.black).cornerRadius(10))
                     }
-                    .background(Color(.black).cornerRadius(10))
                     .padding(10)
                 }
         }
@@ -64,11 +72,10 @@ struct RoutingView: View {
             logManager.setSubjectId(subjectId: subjectId)
             logManager.setStartTime(startTime: startTime)
             logManager.setMode(mode: "map")
-            logManager.logItemServer = logItemServer
-            logManager.startLoggingTimer()
+            logManager.startBackgroundLogging(dataSource: logItemServer)
         }
         .onDisappear {
-            logManager.stopLoggingTimer()
+            logManager.stopBackgroundLogging()
             logManager.stopUpdates()
         }
     }
