@@ -1,6 +1,6 @@
 //  LogManager.swift
 //  QuantiBike
-//  Enhanced logging for both feet using DispatchSourceTimer for reliability
+//  Handles logging for both left and right foot FSR sensors with anatomical labels and improved reliability
 
 import Foundation
 import CoreMotion
@@ -14,12 +14,9 @@ class LogManager: NSObject, ObservableObject {
     private var subjectId: String = ""
     private var startTime: Date = Date()
     private var mode: String = "not_defined"
-    private var lastLoggedTime: TimeInterval = 0
+    private var loggingTimer: Timer?
 
     @Published var runtime = 0.0
-    var loggingTimer: DispatchSourceTimer?
-    var backgroundTask: UIBackgroundTaskIdentifier = .invalid
-    weak var logItemServer: LogItemServer?
 
     var latitude: String { "\(LocationManager.shared.lastLocation?.coordinate.latitude ?? 0)" }
     var longitude: String { "\(LocationManager.shared.lastLocation?.coordinate.longitude ?? 0)" }
@@ -44,48 +41,12 @@ class LogManager: NSObject, ObservableObject {
         return dateFormatter.string(from: date)
     }
 
-    func startLoggingTimer() {
-        backgroundTask = UIApplication.shared.beginBackgroundTask(withName: "LogBackgroundTask") {
-            UIApplication.shared.endBackgroundTask(self.backgroundTask)
-            self.backgroundTask = .invalid
-        }
-
-        loggingTimer = DispatchSource.makeTimerSource(queue: DispatchQueue.global(qos: .background))
-        loggingTimer?.schedule(deadline: .now(), repeating: 0.5)
-        loggingTimer?.setEventHandler { [weak self] in
-            guard let self = self, let server = self.logItemServer else { return }
-            let now = Date().timeIntervalSinceReferenceDate
-            if now - self.lastLoggedTime < 0.5 { return }
-            self.lastLoggedTime = now
-
-            DispatchQueue.main.async {
-                self.runtime = now - self.startTime.timeIntervalSinceReferenceDate
-                self.triggerUpdate(
-                    runtime: self.runtime,
-                    left: server.leftFoot,
-                    right: server.rightFoot,
-                    leftCalibrationStatus: server.leftStatusMessage,
-                    rightCalibrationStatus: server.rightStatusMessage
-                )
-            }
-        }
-        loggingTimer?.resume()
-    }
-
-    func stopLoggingTimer() {
-        loggingTimer?.cancel()
-        loggingTimer = nil
-        if backgroundTask != .invalid {
-            UIApplication.shared.endBackgroundTask(backgroundTask)
-            backgroundTask = .invalid
-        }
-    }
-
     func triggerUpdate(runtime: TimeInterval,
                        left: FootSensorData,
                        right: FootSensorData,
                        leftCalibrationStatus: String,
                        rightCalibrationStatus: String) {
+
         csvData.append(LogItem(
             timestamp: runtime,
             phoneAcceleration: motionManager.accelerometerData,
@@ -99,6 +60,26 @@ class LogManager: NSObject, ObservableObject {
         ))
     }
 
+    func startBackgroundLogging(dataSource: LogItemServer) {
+        loggingTimer?.invalidate()
+        loggingTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            let runtime = Date().timeIntervalSinceReferenceDate - self.startTime.timeIntervalSinceReferenceDate
+            self.triggerUpdate(
+                runtime: runtime,
+                left: dataSource.leftFoot,
+                right: dataSource.rightFoot,
+                leftCalibrationStatus: dataSource.leftStatusMessage,
+                rightCalibrationStatus: dataSource.rightStatusMessage
+            )
+        }
+    }
+
+    func stopBackgroundLogging() {
+        loggingTimer?.invalidate()
+        loggingTimer = nil
+    }
+
     func stopUpdates() {
         motionManager.stopGyroUpdates()
         motionManager.stopAccelerometerUpdates()
@@ -106,9 +87,17 @@ class LogManager: NSObject, ObservableObject {
         headPhoneMotionManager.stopDeviceMotionUpdates()
     }
 
-    func setSubjectId(subjectId: String) { self.subjectId = subjectId }
-    func setMode(mode: String) { self.mode = mode }
-    func setStartTime(startTime: Date) { self.startTime = startTime }
+    func setSubjectId(subjectId: String) {
+        self.subjectId = subjectId
+    }
+
+    func setMode(mode: String) {
+        self.mode = mode
+    }
+
+    func setStartTime(startTime: Date) {
+        self.startTime = startTime
+    }
 
     func getLongitude() -> String { longitude }
     func getLatitude() -> String { latitude }
