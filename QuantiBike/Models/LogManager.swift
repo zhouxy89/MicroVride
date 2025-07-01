@@ -1,6 +1,6 @@
 //  LogManager.swift
 //  QuantiBike
-//  Handles logging for both left and right foot FSR sensors with anatomical labels
+//  Enhanced logging for both feet using DispatchSourceTimer for reliability
 
 import Foundation
 import CoreMotion
@@ -16,8 +16,10 @@ class LogManager: NSObject, ObservableObject {
     private var mode: String = "not_defined"
     private var lastLoggedTime: TimeInterval = 0
 
-
     @Published var runtime = 0.0
+    var loggingTimer: DispatchSourceTimer?
+    var backgroundTask: UIBackgroundTaskIdentifier = .invalid
+    weak var logItemServer: LogItemServer?
 
     var latitude: String { "\(LocationManager.shared.lastLocation?.coordinate.latitude ?? 0)" }
     var longitude: String { "\(LocationManager.shared.lastLocation?.coordinate.longitude ?? 0)" }
@@ -42,29 +44,60 @@ class LogManager: NSObject, ObservableObject {
         return dateFormatter.string(from: date)
     }
 
-    func triggerUpdate(runtime: TimeInterval,
-                   left: FootSensorData,
-                   right: FootSensorData,
-                   leftCalibrationStatus: String,
-                   rightCalibrationStatus: String) {
-    // Throttle updates: only log if 0.5 seconds have passed
-    if runtime - lastLoggedTime < 0.5 {
-        return
-    }
-    lastLoggedTime = runtime
+    func startLoggingTimer() {
+        backgroundTask = UIApplication.shared.beginBackgroundTask(withName: "LogBackgroundTask") {
+            UIApplication.shared.endBackgroundTask(self.backgroundTask)
+            self.backgroundTask = .invalid
+        }
 
-    csvData.append(LogItem(
-        timestamp: runtime,
-        phoneAcceleration: motionManager.accelerometerData,
-        phoneMotionData: motionManager.deviceMotion,
-        phoneBattery: UIDevice.current.batteryLevel,
-        leftFoot: left,
-        rightFoot: right,
-        leftCalibrationStatus: leftCalibrationStatus,
-        rightCalibrationStatus: rightCalibrationStatus,
-        locationData: LocationManager.shared.lastLocation
-    ))
-}
+        loggingTimer = DispatchSource.makeTimerSource(queue: DispatchQueue.global(qos: .background))
+        loggingTimer?.schedule(deadline: .now(), repeating: 0.5)
+        loggingTimer?.setEventHandler { [weak self] in
+            guard let self = self, let server = self.logItemServer else { return }
+            let now = Date().timeIntervalSinceReferenceDate
+            if now - self.lastLoggedTime < 0.5 { return }
+            self.lastLoggedTime = now
+
+            DispatchQueue.main.async {
+                self.runtime = now - self.startTime.timeIntervalSinceReferenceDate
+                self.triggerUpdate(
+                    runtime: self.runtime,
+                    left: server.leftFoot,
+                    right: server.rightFoot,
+                    leftCalibrationStatus: server.leftStatusMessage,
+                    rightCalibrationStatus: server.rightStatusMessage
+                )
+            }
+        }
+        loggingTimer?.resume()
+    }
+
+    func stopLoggingTimer() {
+        loggingTimer?.cancel()
+        loggingTimer = nil
+        if backgroundTask != .invalid {
+            UIApplication.shared.endBackgroundTask(backgroundTask)
+            backgroundTask = .invalid
+        }
+    }
+
+    func triggerUpdate(runtime: TimeInterval,
+                       left: FootSensorData,
+                       right: FootSensorData,
+                       leftCalibrationStatus: String,
+                       rightCalibrationStatus: String) {
+        csvData.append(LogItem(
+            timestamp: runtime,
+            phoneAcceleration: motionManager.accelerometerData,
+            phoneMotionData: motionManager.deviceMotion,
+            phoneBattery: UIDevice.current.batteryLevel,
+            leftFoot: left,
+            rightFoot: right,
+            leftCalibrationStatus: leftCalibrationStatus,
+            rightCalibrationStatus: rightCalibrationStatus,
+            locationData: LocationManager.shared.lastLocation
+        ))
+    }
 
     func stopUpdates() {
         motionManager.stopGyroUpdates()
@@ -73,17 +106,9 @@ class LogManager: NSObject, ObservableObject {
         headPhoneMotionManager.stopDeviceMotionUpdates()
     }
 
-    func setSubjectId(subjectId: String) {
-        self.subjectId = subjectId
-    }
-
-    func setMode(mode: String) {
-        self.mode = mode
-    }
-
-    func setStartTime(startTime: Date) {
-        self.startTime = startTime
-    }
+    func setSubjectId(subjectId: String) { self.subjectId = subjectId }
+    func setMode(mode: String) { self.mode = mode }
+    func setStartTime(startTime: Date) { self.startTime = startTime }
 
     func getLongitude() -> String { longitude }
     func getLatitude() -> String { latitude }
@@ -131,4 +156,3 @@ class LogManager: NSObject, ObservableObject {
         }
     }
 }
-
